@@ -13,7 +13,7 @@
 Ortelius is a Codex-facing toolkit for building, validating, and materializing
 source-grounded typed/fibered graph JSON.
 
-You point Codex + Ortelius it at a domain, tell it to make a graph database / knowledge graph of that domain, and Codex, guided by Ortelius, does it.
+You point Codex + Ortelius at a domain, tell it to make a graph database / knowledge graph of that domain, and Codex, guided by Ortelius, does it.
 
 ## What This Is
 
