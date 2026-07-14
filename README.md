@@ -23,6 +23,9 @@ Ortelius has two public layers:
   graph-population workflow;
 - a Python graph substrate for typed/fibered graph JSON.
 
+In short: Ortelius provides Codex-facing graph-population protocols for typed/fibered graph JSON,
+plus the validation and materialization tools needed to keep that JSON usable.
+
 The protocol assets are Markdown/JSON control surfaces for Codex. Codex reads
 them, creates a generated graph-population bundle, follows the bundle's loop
 specs, updates cursor/log state, and writes candidate graph JSON.
@@ -50,6 +53,15 @@ Ortelius v0.1.0 does not itself call Codex, crawl the web, persist to a graph
 database, train graph ML models, or guarantee graph quality. It provides the
 public substrate and protocol surface that a Codex session can use to build and
 validate candidate graph data.
+
+## Stable Links
+
+- [LLM index](llms.txt)
+- [Full LLM context](docs/llm_context.md)
+- [Protocol schema](assets/protocol_assets/system/graph_population/v001/graph_population_protocol_schema.md)
+- [Control protocol](assets/protocol_assets/system/graph_population/v001/graph_population_control_protocol.md)
+- [CLI examples](#cli)
+- [Generic graph JSON fixture](tests/fixtures/graph_assets/minimal_generic/graphs/)
 
 ## Graph Model
 

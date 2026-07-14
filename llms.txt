@@ -1,0 +1,53 @@
+# Ortelius
+
+> Ortelius is a Codex-facing workflow system for building typed/fibered graph
+> JSON through graph-population protocol assets and Python validation /
+> materialization tools.
+
+Ortelius is used by pointing Codex at the graph-population protocol schema,
+usually with a `MAKE-GRAPH` request. Codex then creates a generated protocol
+bundle, executes bounded graph-population actions through repo-local Markdown
+and JSON control surfaces, and writes candidate typed/fibered graph JSON.
+
+The Python package does not call Codex or crawl sources by itself. It loads,
+validates, inspects, and materializes graph JSON produced by the protocol
+workflow.
+
+## Core Context
+
+- [README](README.md): Human quick start, badges, install commands, graph model,
+  Codex usage, CLI examples, and generated-bundle policy.
+- [Full LLM context](docs/llm_context.md): Compact project explanation,
+  protocol summary, command examples, and file map for LLM/agent use.
+- [Project metadata](pyproject.toml): Package name, version, Python
+  requirement, dependencies, CLI entry point, pytest config, and ruff config.
+
+## Protocols
+
+- [Graph population protocol schema](assets/protocol_assets/system/graph_population/v001/graph_population_protocol_schema.md): Codex-facing compiler document for `MAKE-GRAPH` and `GENERATE-BUNDLE`.
+- [Graph population control protocol](assets/protocol_assets/system/graph_population/v001/graph_population_control_protocol.md): Codex-facing executor document for `EXECUTE-BUNDLE`.
+- [Protocol manifest](assets/protocol_assets/system/graph_population/v001/manifest.json): Machine-readable index for the v001 system protocol pair.
+- [System protocol README](assets/protocol_assets/system/graph_population/v001/README.md): Short boundary and file map for the protocol asset directory.
+
+## Examples And Fixtures
+
+- [Generic type graph nodes](tests/fixtures/graph_assets/minimal_generic/graphs/tg/nodes.json): Minimal public type graph node fixture.
+- [Generic type graph edges](tests/fixtures/graph_assets/minimal_generic/graphs/tg/edges.json): Minimal public type graph edge fixture.
+- [Generic fiber graph nodes](tests/fixtures/graph_assets/minimal_generic/graphs/fg/nodes.json): Minimal public fiber graph node fixture.
+- [Generic fiber graph edges](tests/fixtures/graph_assets/minimal_generic/graphs/fg/edges.json): Minimal public fiber graph edge fixture.
+- [Minimal generated bundle fixture](tests/fixtures/protocol_assets/minimal_generated_bundle/): Test fixture for generated-bundle validation.
+
+## Source
+
+- [Python package](src/ortelius/): Loader, model, validator, protocol-asset
+  checks, CLI, and graph framework materializers.
+- [CLI implementation](src/ortelius/cli.py): `ortelius validate`, `inspect`,
+  `materialize`, and `protocol` subcommands.
+- [Tests](tests/): Unit, fixture, protocol, materialization, CLI, and README
+  badge tests.
+
+## Optional
+
+- [CI workflow](.github/workflows/ci.yml): GitHub Actions workflow for tests,
+  lint, protocol validation, graph validation, materialization smokes, and
+  package build.
