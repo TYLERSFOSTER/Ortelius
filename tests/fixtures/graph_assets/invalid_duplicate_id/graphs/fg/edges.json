@@ -1,0 +1,61 @@
+{
+  "schema_version": "ortelius.graph.v0",
+  "graph_id": "fg",
+  "record_kind": "edges",
+  "records": [
+    {
+      "id": "fg.edge.example_person_member_of_example_organization",
+      "type_id": "tg.edge.person_member_of_organization",
+      "source_id": "fg.node.example_person",
+      "target_id": "fg.node.example_organization",
+      "label": "Example Person member of Example Organization",
+      "description": "Generic fixture membership relationship.",
+      "status": "accepted",
+      "fields": {
+        "role": {
+          "values": [
+            {
+              "value": "member",
+              "status": "accepted",
+              "confidence": 1.0,
+              "sources": [],
+              "notes": []
+            }
+          ]
+        },
+        "start_date": {
+          "values": [
+            {
+              "value": "2020-01-01",
+              "status": "accepted",
+              "confidence": 0.8,
+              "sources": [],
+              "notes": []
+            }
+          ]
+        },
+        "source_url": {
+          "values": [
+            {
+              "value": "https://example.invalid/membership",
+              "status": "accepted",
+              "confidence": 0.9,
+              "sources": [],
+              "notes": []
+            }
+          ]
+        }
+      },
+      "sources": [],
+      "provenance": {
+        "created_by": "fixture",
+        "created_at": null,
+        "updated_at": null
+      },
+      "review": {
+        "state": "reviewed",
+        "notes": []
+      }
+    }
+  ]
+}

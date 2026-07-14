@@ -1,0 +1,60 @@
+{
+  "schema_version": "ortelius.graph.v0",
+  "graph_id": "tg",
+  "record_kind": "edges",
+  "records": [
+    {
+      "id": "tg.edge.person_member_of_organization",
+      "label": "Person member of organization",
+      "description": "A base relationship from a person to an organization in which membership is asserted.",
+      "status": "accepted",
+      "source_type_id": "tg.node.person",
+      "target_type_id": "tg.node.organization",
+      "directed": true,
+      "inverse_edge_type_id": null,
+      "type_fields": {
+        "schema_version": "ortelius.type_fields.v0",
+        "fields": {
+          "role": {
+            "label": "Role",
+            "value_kind": "string",
+            "cardinality": "required_one",
+            "description": "Role or membership label.",
+            "source_policy": "recommended"
+          },
+          "start_date": {
+            "label": "Start date",
+            "value_kind": "date",
+            "cardinality": "optional_one",
+            "description": "Date the membership began.",
+            "source_policy": "recommended"
+          },
+          "end_date": {
+            "label": "End date",
+            "value_kind": "date",
+            "cardinality": "optional_one",
+            "description": "Date the membership ended.",
+            "source_policy": "recommended"
+          },
+          "source_url": {
+            "label": "Source URL",
+            "value_kind": "uri",
+            "cardinality": "optional_one",
+            "description": "Fixture-safe source pointer.",
+            "source_policy": "recommended"
+          }
+        }
+      },
+      "sources": [],
+      "provenance": {
+        "created_by": "fixture",
+        "created_at": null,
+        "updated_at": null
+      },
+      "review": {
+        "state": "reviewed",
+        "notes": []
+      }
+    }
+  ]
+}

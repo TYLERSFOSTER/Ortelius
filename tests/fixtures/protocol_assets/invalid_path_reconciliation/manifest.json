@@ -1,0 +1,60 @@
+{
+  "schema_version": "ortelius.protocol_bundle.v0",
+  "protocol_id": "minimal_protocol_001",
+  "domain": {
+    "label": "Fixture Domain",
+    "slug": "fixture_domain"
+  },
+  "system_protocol": {
+    "system_protocol_id": "graph_population",
+    "version": "v001",
+    "system_root": "assets/protocol_assets/system/graph_population/v001"
+  },
+  "graphs": {
+    "type_graph_id": "tg",
+    "fiber_graph_id": "fg",
+    "projection": "fg -> tg",
+    "candidate_graph_root": "candidate_graphs",
+    "declared_graph_paths": {
+      "type_nodes": "candidate_graphs/wrong_type_graph/nodes.json",
+      "type_edges": "candidate_graphs/tg/edges.json",
+      "fiber_nodes": "candidate_graphs/fg/nodes.json",
+      "fiber_edges": "candidate_graphs/fg/edges.json"
+    },
+    "existing_graph_paths_checked": [],
+    "path_migration_policy": "stop_for_path_reconciliation"
+  },
+  "documents": {
+    "domain_protocol": "graph_population_protocol.md",
+    "control_protocol": "assets/protocol_assets/system/graph_population/v001/graph_population_control_protocol.md"
+  },
+  "ordered_loop_specs": [
+    "loop_specs/01_domain_suitability.md",
+    "loop_specs/02_graph_json_initialization.md",
+    "loop_specs/03_type_node_discovery.md",
+    "loop_specs/04_type_field_discovery.md",
+    "loop_specs/05_type_edge_discovery.md",
+    "loop_specs/06_type_graph_review.md",
+    "loop_specs/07_instance_target_selection.md",
+    "loop_specs/08_instance_discovery.md",
+    "loop_specs/09_instance_field_completion.md",
+    "loop_specs/10_instance_edge_completion.md",
+    "loop_specs/11_fiber_graph_review.md"
+  ],
+  "runs": {
+    "default_run_id": "run_001",
+    "default_cursor": "runs/run_001/cursor.json",
+    "default_execution_log": "runs/run_001/execution_log.md"
+  },
+  "run_contract_completeness": {
+    "generated_by_mode": "GENERATE-BUNDLE",
+    "execution_mode": "EXECUTE-BUNDLE",
+    "status": "complete",
+    "required_loop_spec_headings_present": true,
+    "validation_defined": true,
+    "source_boundaries_defined": true,
+    "type_graph_ready_gate_defined": true,
+    "path_reconciliation_defined": true,
+    "edge_completion_budgets_defined": true
+  }
+}

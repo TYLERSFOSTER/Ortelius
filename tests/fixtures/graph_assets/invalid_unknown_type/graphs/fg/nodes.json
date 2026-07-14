@@ -1,0 +1,166 @@
+{
+  "schema_version": "ortelius.graph.v0",
+  "graph_id": "fg",
+  "record_kind": "nodes",
+  "records": [
+    {
+      "id": "fg.node.example_person",
+      "type_id": "tg.node.unknown",
+      "label": "Example Person",
+      "description": "Generic fixture person node.",
+      "status": "accepted",
+      "aliases": [],
+      "fields": {
+        "name": {
+          "values": [
+            {
+              "value": "Example Person",
+              "status": "accepted",
+              "confidence": 1.0,
+              "sources": [],
+              "notes": []
+            }
+          ]
+        },
+        "description": {
+          "values": [
+            {
+              "value": "A neutral person fixture.",
+              "status": "accepted",
+              "confidence": 0.9,
+              "sources": [],
+              "notes": []
+            }
+          ]
+        },
+        "source_url": {
+          "values": [
+            {
+              "value": "https://example.invalid/person",
+              "status": "accepted",
+              "confidence": 0.9,
+              "sources": [],
+              "notes": []
+            }
+          ]
+        }
+      },
+      "sources": [],
+      "provenance": {
+        "created_by": "fixture",
+        "created_at": null,
+        "updated_at": null
+      },
+      "review": {
+        "state": "reviewed",
+        "notes": []
+      }
+    },
+    {
+      "id": "fg.node.example_organization",
+      "type_id": "tg.node.organization",
+      "label": "Example Organization",
+      "description": "Generic fixture organization node.",
+      "status": "accepted",
+      "aliases": [],
+      "fields": {
+        "name": {
+          "values": [
+            {
+              "value": "Example Organization",
+              "status": "accepted",
+              "confidence": 1.0,
+              "sources": [],
+              "notes": []
+            }
+          ]
+        },
+        "description": {
+          "values": [
+            {
+              "value": "A neutral organization fixture.",
+              "status": "accepted",
+              "confidence": 0.9,
+              "sources": [],
+              "notes": []
+            }
+          ]
+        },
+        "source_url": {
+          "values": [
+            {
+              "value": "https://example.invalid/organization",
+              "status": "accepted",
+              "confidence": 0.9,
+              "sources": [],
+              "notes": []
+            }
+          ]
+        }
+      },
+      "sources": [],
+      "provenance": {
+        "created_by": "fixture",
+        "created_at": null,
+        "updated_at": null
+      },
+      "review": {
+        "state": "reviewed",
+        "notes": []
+      }
+    },
+    {
+      "id": "fg.node.example_place",
+      "type_id": "tg.node.place",
+      "label": "Example Place",
+      "description": "Generic fixture place node.",
+      "status": "accepted",
+      "aliases": [],
+      "fields": {
+        "name": {
+          "values": [
+            {
+              "value": "Example Place",
+              "status": "accepted",
+              "confidence": 1.0,
+              "sources": [],
+              "notes": []
+            }
+          ]
+        },
+        "description": {
+          "values": [
+            {
+              "value": "A neutral place fixture.",
+              "status": "accepted",
+              "confidence": 0.9,
+              "sources": [],
+              "notes": []
+            }
+          ]
+        },
+        "source_url": {
+          "values": [
+            {
+              "value": "https://example.invalid/place",
+              "status": "accepted",
+              "confidence": 0.9,
+              "sources": [],
+              "notes": []
+            }
+          ]
+        }
+      },
+      "sources": [],
+      "provenance": {
+        "created_by": "fixture",
+        "created_at": null,
+        "updated_at": null
+      },
+      "review": {
+        "state": "reviewed",
+        "notes": []
+      }
+    }
+  ]
+}

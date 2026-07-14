@@ -1,0 +1,90 @@
+{
+  "schema_version": "ortelius.system_protocol_manifest.v0",
+  "system_protocol_id": "graph_population",
+  "version": "v001",
+  "protocol_kind": "system_graph_population_protocols",
+  "domain_agnostic": true,
+  "system_root": "assets/protocol_assets/system/graph_population/v001",
+  "documents": {
+    "protocol_schema": "graph_population_protocol_schema.md",
+    "control_protocol": "graph_population_control_protocol.md",
+    "readme": "README.md"
+  },
+  "prompts": {
+    "generate_bundle": "prompts/generate_bundle.md",
+    "execute_bundle": "prompts/execute_bundle.md"
+  },
+  "trigger_phrases": {
+    "generate_bundle": "GENERATE-BUNDLE",
+    "execute_bundle": "EXECUTE-BUNDLE"
+  },
+  "generated_bundle_contract": {
+    "bundle_root_pattern": "assets/protocol_assets/bundles/<domain_slug>/<protocol_id>",
+    "required_files": [
+      "manifest.json",
+      "graph_population_protocol.md",
+      "runs/<run_id>/cursor.json",
+      "runs/<run_id>/execution_log.md"
+    ],
+    "required_directories": [
+      "loop_specs",
+      "candidate_graphs",
+      "runs/<run_id>"
+    ],
+    "required_manifest_fields": [
+      "schema_version",
+      "protocol_id",
+      "domain",
+      "graphs",
+      "documents",
+      "ordered_loop_specs",
+      "runs",
+      "run_contract_completeness"
+    ],
+    "required_loop_spec_headings": [
+      "Loop Identity",
+      "Inputs",
+      "Iterator",
+      "Current Item Shape",
+      "Action Template",
+      "Allowed Writes",
+      "Source Boundaries",
+      "Evidence Required",
+      "Validation Required",
+      "Completion Rule",
+      "Stop Conditions",
+      "Handoff"
+    ]
+  },
+  "graph_contract": {
+    "default_type_graph_id_example": "tg",
+    "default_fiber_graph_id_example": "fg",
+    "candidate_graph_paths": {
+      "type_nodes": "candidate_graphs/<type_graph_id>/nodes.json",
+      "type_edges": "candidate_graphs/<type_graph_id>/edges.json",
+      "fiber_nodes": "candidate_graphs/<fiber_graph_id>/nodes.json",
+      "fiber_edges": "candidate_graphs/<fiber_graph_id>/edges.json"
+    },
+    "loader_shape": {
+      "function": "load_graph_bundle",
+      "required_arguments": [
+        "graph_root",
+        "type_graph_id",
+        "fiber_graph_id"
+      ]
+    }
+  },
+  "graph_tool_commands": {
+    "validate": "uv run ortelius validate --graph-root <candidate_graph_root> --type-graph-id <type_graph_id> --fiber-graph-id <fiber_graph_id> --mode bootstrap",
+    "inspect": "uv run ortelius inspect --graph-root <candidate_graph_root> --type-graph-id <type_graph_id> --fiber-graph-id <fiber_graph_id>",
+    "materialize_networkx": "uv run ortelius materialize networkx --graph-root <candidate_graph_root> --type-graph-id <type_graph_id> --fiber-graph-id <fiber_graph_id>",
+    "materialize_pyg": "uv run ortelius materialize pyg --graph-root <candidate_graph_root> --type-graph-id <type_graph_id> --fiber-graph-id <fiber_graph_id>",
+    "materialize_dgl": "uv run ortelius materialize dgl --graph-root <candidate_graph_root> --type-graph-id <type_graph_id> --fiber-graph-id <fiber_graph_id>"
+  },
+  "non_goals": [
+    "live_source_crawling",
+    "domain_graph_population",
+    "accepted_fact_writes",
+    "hard_codex_api_interpreter"
+  ]
+}

@@ -1,0 +1,133 @@
+{
+  "schema_version": "ortelius.graph.v0",
+  "graph_id": "tg",
+  "record_kind": "nodes",
+  "records": [
+    {
+      "id": "tg.node.person",
+      "label": "Person",
+      "description": "A generic type for individual people.",
+      "status": "accepted",
+      "type_fields": {
+        "schema_version": "ortelius.type_fields.v0",
+        "fields": {
+          "name": {
+            "label": "Name",
+            "value_kind": "string",
+            "cardinality": "required_one",
+            "description": "Preferred public name for the entity.",
+            "source_policy": "recommended"
+          },
+          "description": {
+            "label": "Description",
+            "value_kind": "text",
+            "cardinality": "optional_one",
+            "description": "Short fixture description.",
+            "source_policy": "recommended"
+          },
+          "source_url": {
+            "label": "Source URL",
+            "value_kind": "uri",
+            "cardinality": "optional_one",
+            "description": "Fixture-safe source pointer.",
+            "source_policy": "recommended"
+          }
+        }
+      },
+      "sources": [],
+      "provenance": {
+        "created_by": "fixture",
+        "created_at": null,
+        "updated_at": null
+      },
+      "review": {
+        "state": "reviewed",
+        "notes": []
+      }
+    },
+    {
+      "id": "tg.node.person",
+      "label": "Duplicate Person",
+      "description": "A generic type for organized groups or institutions.",
+      "status": "accepted",
+      "type_fields": {
+        "schema_version": "ortelius.type_fields.v0",
+        "fields": {
+          "name": {
+            "label": "Name",
+            "value_kind": "string",
+            "cardinality": "required_one",
+            "description": "Preferred public name for the entity.",
+            "source_policy": "recommended"
+          },
+          "description": {
+            "label": "Description",
+            "value_kind": "text",
+            "cardinality": "optional_one",
+            "description": "Short fixture description.",
+            "source_policy": "recommended"
+          },
+          "source_url": {
+            "label": "Source URL",
+            "value_kind": "uri",
+            "cardinality": "optional_one",
+            "description": "Fixture-safe source pointer.",
+            "source_policy": "recommended"
+          }
+        }
+      },
+      "sources": [],
+      "provenance": {
+        "created_by": "fixture",
+        "created_at": null,
+        "updated_at": null
+      },
+      "review": {
+        "state": "reviewed",
+        "notes": []
+      }
+    },
+    {
+      "id": "tg.node.place",
+      "label": "Place",
+      "description": "A generic type for physical or administrative places.",
+      "status": "accepted",
+      "type_fields": {
+        "schema_version": "ortelius.type_fields.v0",
+        "fields": {
+          "name": {
+            "label": "Name",
+            "value_kind": "string",
+            "cardinality": "required_one",
+            "description": "Preferred public name for the entity.",
+            "source_policy": "recommended"
+          },
+          "description": {
+            "label": "Description",
+            "value_kind": "text",
+            "cardinality": "optional_one",
+            "description": "Short fixture description.",
+            "source_policy": "recommended"
+          },
+          "source_url": {
+            "label": "Source URL",
+            "value_kind": "uri",
+            "cardinality": "optional_one",
+            "description": "Fixture-safe source pointer.",
+            "source_policy": "recommended"
+          }
+        }
+      },
+      "sources": [],
+      "provenance": {
+        "created_by": "fixture",
+        "created_at": null,
+        "updated_at": null
+      },
+      "review": {
+        "state": "reviewed",
+        "notes": []
+      }
+    }
+  ]
+}

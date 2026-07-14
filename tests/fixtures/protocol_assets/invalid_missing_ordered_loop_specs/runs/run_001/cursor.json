@@ -1,0 +1,14 @@
+{
+  "schema_version": "ortelius.protocol_cursor.v0",
+  "run_id": "run_001",
+  "protocol_id": "minimal_protocol_001",
+  "status": "not_started",
+  "active_loop_id": null,
+  "active_action_id": null,
+  "active_iteration": {},
+  "completed_loop_ids": [],
+  "completed_action_ids": [],
+  "blocked_on": null,
+  "last_log_entry_id": null,
+  "updated_at": null
+}

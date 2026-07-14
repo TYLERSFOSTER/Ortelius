@@ -1,0 +1,6 @@
+{
+  "schema_version": "ortelius.graph.v0",
+  "graph_id": "tg",
+  "record_kind": "edges",
+  "records": []
+}

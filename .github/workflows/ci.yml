@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    name: Tests and release smokes
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Run tests
+        run: uv run pytest
+
+      - name: Run lint
+        run: uv run ruff check .
+
+      - name: Check whitespace
+        run: |
+          if git grep -nI '[[:blank:]]$' -- .; then
+            echo "Trailing whitespace found."
+            exit 1
+          fi
+
+      - name: Validate system protocol assets
+        run: uv run ortelius protocol validate-system --system-root assets/protocol_assets/system/graph_population/v001
+
+      - name: Validate generated-bundle fixture
+        run: uv run ortelius protocol validate-bundle --protocol-root tests/fixtures/protocol_assets/minimal_generated_bundle
+
+      - name: Inspect generated-bundle fixture
+        run: uv run ortelius protocol inspect-bundle --protocol-root tests/fixtures/protocol_assets/minimal_generated_bundle
+
+      - name: Validate generic graph fixture
+        run: uv run ortelius validate --graph-root tests/fixtures/graph_assets/minimal_generic/graphs --type-graph-id tg --fiber-graph-id fg --mode bootstrap
+
+      - name: Inspect generic graph fixture
+        run: uv run ortelius inspect --graph-root tests/fixtures/graph_assets/minimal_generic/graphs --type-graph-id tg --fiber-graph-id fg
+
+      - name: Materialize generic graph fixture with NetworkX
+        run: uv run ortelius materialize networkx --graph-root tests/fixtures/graph_assets/minimal_generic/graphs --type-graph-id tg --fiber-graph-id fg
+
+      - name: Materialize generic graph fixture with PyG
+        run: uv run ortelius materialize pyg --graph-root tests/fixtures/graph_assets/minimal_generic/graphs --type-graph-id tg --fiber-graph-id fg
+
+      - name: Check DGL readiness path
+        run: uv run ortelius materialize dgl --graph-root tests/fixtures/graph_assets/minimal_generic/graphs --type-graph-id tg --fiber-graph-id fg
+
+      - name: Build package
+        run: uv run --with build python -m build

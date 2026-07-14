@@ -1,0 +1,2785 @@
+# Graph Population Control Protocol
+
+## Quick Use For Human Operator
+
+Start here only when a generated graph-population bundle already exists and you
+want Codex to execute or continue that bundle.
+
+Tell Codex:
+
+```text
+EXECUTE-BUNDLE
+
+Use assets/protocol_assets/system/graph_population/v001/graph_population_control_protocol.md
+as the control protocol.
+
+protocol_root: assets/protocol_assets/bundles/<domain_slug>/<protocol_id>
+run_id: run_001
+candidate_graph_root: assets/protocol_assets/bundles/<domain_slug>/<protocol_id>/candidate_graphs
+continue_until: first_completed_action
+validation_mode: bootstrap
+```
+
+Use `continue_until: graph_build_targets_met` only when you want Codex to keep
+walking the generated Markdown loop surface until the requested graph targets
+are met or a stop condition fires.
+
+If you are starting from a sentence like "Make graph on domain...", point Codex
+at the schema first:
+
+```text
+assets/protocol_assets/system/graph_population/v001/graph_population_protocol_schema.md
+```
+
+## Corrected Soft Control Flow Diagram
+
+This diagram is the whole-system control flow. It is normative for both the
+schema/compiler phase and the control/executor phase.
+
+```mermaid
+flowchart TD
+  A["User invocation"] --> B{"Dispatch"}
+
+  B -->|"GENERATE-BUNDLE"| C["Schema/compiler phase"]
+  B -->|"MAKE-GRAPH or clear plain-language graph request"| D["Compile graph_build_target"]
+  B -->|"EXECUTE-BUNDLE"| E["Control/executor phase"]
+
+  D --> C
+
+  C --> C1["Create or repair protocol_root under assets/protocol_assets/bundles/"]
+  C1 --> C2["Write manifest.json"]
+  C2 --> C3["Write graph_population_protocol.md"]
+  C3 --> C4["Write mandatory control_loop_plan.md for MAKE-GRAPH"]
+  C4 --> C5["Write loop_specs/*.md"]
+  C5 --> C6["Initialize candidate graph JSON files"]
+  C6 --> C7["Initialize run artifacts: structured cursor, initialized execution_log, source_batch_plan, reports, source_batches, batch_packets, tool_outputs"]
+  C7 --> C8["Run generated-bundle acceptance checks"]
+  C8 --> C9["Write runs/<run_id>/reports/generated_bundle_acceptance_report.md"]
+
+  C9 -->|"generated_bundle_acceptance: failed or validation_unavailable_stop"| S["Stop with structured failure"]
+  C9 -->|"GENERATE-BUNDLE only"| R["Report validation command and stop"]
+  C9 -->|"MAKE-GRAPH and generated_bundle_acceptance: passed"| E
+
+  E --> E1["Verify required bundle files"]
+  E1 --> E2["Read manifest, domain protocol, control_loop_plan, loop specs, cursor, execution log"]
+  E2 --> E3["Verify run_contract_completeness"]
+  E3 -->|"incomplete"| S
+  E3 --> E4["Reconcile graph paths and inspect current graph JSON state"]
+  E4 --> E5["Derive next legal bounded action from manifest order, loop spec, cursor, log, and repo reality"]
+  E5 --> E6["Execute one Markdown-authorized action"]
+  E6 --> E7["Persist source batches, Markdown reports, graph JSON changes, or tool output logs"]
+  E7 --> E8["Validate affected state"]
+  E8 --> E9["Append execution_log entry"]
+  E9 --> E10["Update cursor"]
+
+  E10 -->|"continue allowed and target not met"| E2
+  E10 -->|"graph_build_targets_met and semantic gates passed"| Z["Complete run"]
+  E10 -->|"stop condition"| S
+```
+
+## 0. Cold-Start Operational Bootloader
+
+This document must be sufficient for a Codex instance with no prior
+conversation context.
+
+Read this section first. Later sections are normative, but they are subordinate
+to this bootloader for initial routing, artifact authority, and first action
+selection.
+
+### 0.0.1 Document Identity
+
+This file is the domain-agnostic graph-population control protocol.
+
+Its job is to execute an already generated graph-population protocol bundle by
+interpreting repo-local Markdown, JSON, cursor, log, report, source-batch, and
+graph files.
+
+It is not:
+
+- the bundle generator;
+- the graph-build request compiler;
+- a domain-specific crawl plan;
+- a source of domain facts by itself;
+- permission to improvise hidden loops, generated helper scripts, or in-memory
+  traversal state.
+
+The companion compiler/schema is:
+
+```text
+assets/protocol_assets/system/graph_population/v001/graph_population_protocol_schema.md
+```
+
+### 0.0.2 System Pair Roles
+
+The two hand-authored system documents have separate jobs:
+
+```text
+graph_population_protocol_schema.md
+  -> compiler / bundle generator
+
+graph_population_control_protocol.md
+  -> interpreter / run executor
+
+generated protocol bundle
+  -> workflow program
+
+manifest + control_loop_plan + loop_specs + cursor + log + reports
+  -> externalized program counter and run state
+```
+
+This control protocol executes the generated workflow program. It does not
+replace the generated workflow program.
+
+### 0.0.3 Invocation Dispatch
+
+At first contact, classify the invocation before doing any other work.
+
+Use this dispatch table:
+
+```text
+EXECUTE-BUNDLE
+  Use this control protocol to execute an existing generated bundle.
+  Verify required files before any graph action.
+  Execute exactly the next legal bounded action unless continue_until says
+  otherwise.
+
+MAKE-GRAPH, after bundle generation and acceptance
+  Use this control protocol only for the execution phase.
+  Read manifest.graph_build_target and manifest.control_loop_plan.
+  Execute until semantic targets are met or a true stop condition fires.
+
+MAKE-GRAPH, raw short request with no generated bundle
+  Wrong document for the first phase.
+  Route to graph_population_protocol_schema.md.
+
+GENERATE-BUNDLE
+  Wrong document.
+  Route to graph_population_protocol_schema.md.
+
+Plain-language request to run/populate/continue an existing bundle
+  Treat as EXECUTE-BUNDLE only if protocol_root and run_id can be identified.
+  Otherwise ask only the blocking clarification.
+```
+
+Do not inspect sources, select records, write graph JSON, or advance the cursor
+until the dispatch decision and bundle existence check are explicit.
+
+### 0.0.4 First Actions For This Control Protocol
+
+After dispatch, perform this sequence before any graph-population action:
+
+```text
+1. identify mode, protocol_root, and run_id;
+2. verify required bundle files exist;
+3. read manifest.json;
+4. read graph_population_protocol.md;
+5. read control_loop_plan.md when present; for `MAKE-GRAPH`, this file is
+   mandatory and must be read;
+6. read ordered loop specs;
+7. read cursor.json and execution_log.md;
+8. reconcile candidate graph paths;
+9. derive the next legal bounded action from the cursor and loop surface;
+10. state the bounded action and stop condition before mutating files.
+```
+
+If any required artifact is missing or contradictory, stop with a structured
+failure report naming the smallest failing surface. Do not fill gaps from
+model memory.
+
+### 0.0.5 Minimal Vocabulary At First Contact
+
+Use these definitions before relying on later detailed sections:
+
+```text
+schema:
+  hand-authored generator document
+
+control protocol:
+  this hand-authored executor document
+
+protocol bundle:
+  generated repo-local files for one domain/protocol_id
+
+domain protocol:
+  generated graph_population_protocol.md inside a bundle
+
+control loop plan:
+  generated dotted nested loop plan that binds targets to traversal
+
+loop spec:
+  generated Markdown file defining one explicit loop/action surface
+
+cursor:
+  JSON run pointer recording the current externalized program counter
+
+execution log:
+  append-only Markdown record of actions, validation, failures, and handoffs
+
+type graph / downstairs graph:
+  graph of admissible domain types and relation types
+
+fiber graph / upstairs graph:
+  graph of concrete instances projected onto the type graph
+```
+
+If a later section uses a term that is not yet clear, resolve it against this
+vocabulary and actual bundle files. Do not improvise.
+
+### 0.0.6 Hand-Authored Versus Generated Files
+
+This file is hand-authored system guidance.
+
+The run authority lives in generated bundle files such as:
+
+```text
+manifest.json
+graph_population_protocol.md
+control_loop_plan.md
+loop_specs/*.md
+candidate_graphs/<type_graph_id>/nodes.json
+candidate_graphs/<type_graph_id>/edges.json
+candidate_graphs/<fiber_graph_id>/nodes.json
+candidate_graphs/<fiber_graph_id>/edges.json
+runs/<run_id>/cursor.json
+runs/<run_id>/execution_log.md
+runs/<run_id>/source_batch_plan.md
+runs/<run_id>/reports/generated_bundle_acceptance_report.md
+runs/<run_id>/reports/*.md
+runs/<run_id>/source_batches/*
+runs/<run_id>/batch_packets/*.md
+runs/<run_id>/tool_outputs/*
+```
+
+This control protocol tells Codex how to interpret those files. It must not
+silently create a different control system.
+
+### 0.0.7 Wrong-Mode Stops
+
+If the prompt asks this control protocol to create a new bundle, stop with:
+
+```text
+wrong_mode: use graph_population_protocol_schema.md
+```
+
+If the prompt is a raw short graph-build request and no generated bundle
+exists, stop and route to the schema. Do not compile the bundle from inside
+this control protocol.
+
+If a mode or required input is missing, ask at most three blocking questions.
+
+### 0.0.8 Cold-Start Output Discipline
+
+Before mutating files, report:
+
+```text
+mode:
+document_role:
+protocol_root:
+run_id:
+cursor_status:
+files_that_may_change:
+first_bounded_action:
+stop_condition:
+```
+
+Do not expose manifest/cursor/log internals beyond what the human needs unless
+`diagnostic_verbosity` is `full`, the user asks, or the detail is needed to
+explain a stop condition.
+
+### 0.0.9 Operational Read Order For The Rest Of This Document
+
+After this bootloader, read and apply the remaining sections in this order:
+
+```text
+1. Agentic Loop Ownership Directive
+2. Mode Boundary
+3. Human Interaction Contract
+4. Purpose and Graph Build Target Execution Contract
+5. Required Inputs, Required Bundle Files, and Run Contract Completeness
+6. Graph Tool Compatibility Gates
+7. Externalized Program Counter
+8. Dispatcher Cycle, Next Legal Action Rule, and Loop Traversal Semantics
+9. Type-Graph Execution Order
+10. Fiber-Graph Execution Order
+11. JSON Write Discipline and Repo-Local Run Artifact Discipline
+12. Evidence, Source-Crawl, and Markdown Batch Execution Discipline
+13. Completion Rules, Stop Conditions, Failure Reports, Logs, and Cursor Updates
+14. Candidate Invocation Prompts and Smoke-Test Shape
+```
+
+If a later section seems to conflict with the bootloader, obey the bootloader
+and repair or report the conflict rather than improvising.
+
+## 0.1 Agentic Loop Ownership Directive
+
+The generated Markdown control surface is the workflow program.
+
+Codex is the interpreter of that program. The externalized program counter is
+the combination of:
+
+```text
+manifest.ordered_loop_specs
+control_loop_plan.md
+loop_specs/
+runs/<run_id>/cursor.json
+runs/<run_id>/execution_log.md
+runs/<run_id>/reports/
+```
+
+All semantic iteration must be represented in that Markdown/JSON/log surface
+before it is executed.
+
+Generated Python, shell scripts, notebooks, or other helper code must not own,
+traverse, or complete graph-building loops. They must not decide, select,
+iterate over, or write:
+
+```text
+type nodes
+type fields
+type edges
+type-edge fields
+fiber nodes
+fiber-node field values
+fiber edges
+fiber-edge field values
+```
+
+If execution discovers that a step requires a nested loop that has not yet been
+made explicit, Codex must pause graph writes, expand the Markdown loop surface,
+update the cursor/log, and then resume from the explicit loop. If only one
+level is known, Codex must create a bounded child-loop-generation action rather
+than hiding traversal inside code.
+
+Existing repository Python tools may be used as validators, inspectors, or
+materializers after Codex has written graph JSON according to an authorized
+Markdown action. They are not the workflow engine.
+
+If a generated script or ad hoc code loop appears necessary to perform graph
+population, stop with:
+
+```text
+generated_code_loop_forbidden
+```
+
+and report the Markdown loop surface that needs to be expanded instead.
+
+## 0.2 Mode Boundary
+
+This document is used in `EXECUTE-BUNDLE` mode and in the execution phase of a
+`MAKE-GRAPH` run after bundle generation and acceptance.
+
+`EXECUTE-BUNDLE` mode runs an already generated graph-population protocol
+bundle. It must not generate or redesign that bundle unless the invocation
+explicitly says `REPAIR-BUNDLE`.
+
+`MAKE-GRAPH` is not a third execution mode that erases this boundary. It is a
+front-door macro whose execution phase reaches this document only after:
+
+```text
+1. the short request has been compiled by graph_population_protocol_schema.md;
+2. a generated protocol bundle exists;
+3. manifest.graph_build_target exists;
+4. manifest.control_loop_plan exists;
+5. manifest.make_graph_orchestration records the phase sequence and handoff rule;
+6. generated-bundle acceptance checks have passed;
+7. `runs/<run_id>/reports/generated_bundle_acceptance_report.md` exists and
+   records `generated_bundle_acceptance: passed`;
+8. the handoff is represented in repo-local files, not memory.
+```
+
+If the raw short request reaches this control protocol without a generated
+bundle, stop with `wrong_mode`. Do not compile the bundle from inside
+`EXECUTE-BUNDLE`.
+
+For a short front-door request such as:
+
+```text
+Make graph on domain: <domain label>, with 10 node types and 10 instances
+of each type, and then 5 edge types and 10 instances of each.
+```
+
+execution begins only after the request has been compiled into a generated
+bundle whose manifest contains `graph_build_target` and `control_loop_plan`.
+The control protocol then executes the generated loop plan until those targets
+are met or a real stop condition fires.
+
+For `MAKE-GRAPH` runs, this document must still execute only the explicit
+Markdown loop surface. It must not treat the macro as permission to skip loop
+specs, batch packets, Markdown decision reports, source caches, validation, or
+cursor/log updates.
+
+If an invocation asks Codex to create a new domain-specific protocol bundle,
+Codex must stop and report:
+
+```text
+wrong_mode: use GENERATE-BUNDLE with graph_population_protocol_schema.md
+```
+
+The accepted execution trigger for this document is:
+
+```text
+EXECUTE-BUNDLE
+```
+
+This document may also be used for the execution phase of `MAKE-GRAPH`, but
+only after a generated bundle exists and the schema's acceptance gate has
+passed. A raw `MAKE-GRAPH` request belongs to the schema first.
+
+## 0.3 Human Interaction Contract
+
+This document controls conversation with the human prompter as well as bundle
+execution.
+
+Use progressive disclosure: show the human only the amount of system machinery
+needed for the current decision, unless the human asks for more detail or
+`diagnostic_verbosity` is `full`.
+
+The closest standard terms for this behavior are:
+
+- human-in-the-loop workflow;
+- interaction contract;
+- diagnostic UX;
+- structured error reporting;
+- adaptive expertise-aware prompting.
+
+### Interaction Mode
+
+Every invocation must support:
+
+```text
+interaction_level: expert | guided | onboarding
+diagnostic_verbosity: terse | normal | full
+```
+
+Defaults:
+
+```text
+interaction_level: guided
+diagnostic_verbosity: normal
+```
+
+Interaction meanings:
+
+- `expert`: assume the human knows `GENERATE-BUNDLE`, `EXECUTE-BUNDLE`, graph
+  IDs, manifests, loop specs, cursors, and graph roots. Do not overexplain.
+- `guided`: briefly explain current state, identify the next bounded action,
+  and ask only blocking questions.
+- `onboarding`: teach enough of the system for the human to make the next
+  decision, while still keeping questions bounded.
+
+### Expert Fast Path
+
+If the human supplies complete protocol language, respond tersely:
+
+```text
+Mode: EXECUTE-BUNDLE
+Protocol root: <protocol_root>
+Run ID: <run_id>
+Next action: identify and execute the next legal action
+Missing inputs: none
+Proceeding.
+```
+
+### New User Ramp Path
+
+If the human request is vague or uses ordinary language, do not dump internals.
+Start with this kind of orientation:
+
+```text
+This system builds a typed graph in two layers:
+1. a type graph defining what kinds of things and relations exist;
+2. a fiber graph containing concrete instances over those types.
+
+Right now we are executing an existing protocol bundle. I will inspect the
+bundle state, identify the next legal bounded action, and stop if required
+state is missing.
+```
+
+### Question Discipline
+
+Ask at most three blocking questions at once.
+
+For each question:
+
+- say why it matters;
+- give the recommended default when one exists;
+- avoid implementation-internal questions unless the answer changes
+  user-visible behavior or run safety.
+
+### Situation Briefing Before Action
+
+Before mutating graph JSON, advancing cursor state, or crawling sources, state:
+
+- where the run is;
+- what mode is active;
+- what files may change;
+- what the next bounded action is;
+- what would cause a stop.
+
+In `expert` mode, this may be a compact status block. In `guided` or
+`onboarding` mode, use plain language first and technical labels second.
+
+### Behind-The-Scenes Filtering
+
+Do not expose cursor, log, manifest, or loop-spec details unless:
+
+- they are relevant to the human's decision;
+- they explain a failure or stop;
+- the human asks for them;
+- `diagnostic_verbosity` is `full`.
+
+### Plain-Language Glossary On Demand
+
+When the human appears unfamiliar with the system, translate terms:
+
+```text
+type graph = the graph of categories and allowed relation kinds
+fiber graph = the graph of actual things mapped onto those categories
+loop spec = the checklist that keeps Codex from wandering
+cursor = the saved place in the run
+```
+
+### Dual-Layer Error Messages
+
+Every error or stop should have:
+
+1. a user-facing diagnosis;
+2. a technical failure report when technical detail is relevant.
+
+Example:
+
+```text
+I cannot start population yet because the generated protocol bundle is missing
+its ordered loop list. That list tells me which crawl pass comes first.
+
+Technical:
+failure_kind: incomplete_run_contract
+missing_field: manifest.ordered_loop_specs
+safe_to_resume: yes
+recommended_next_action: repair the generated bundle manifest
+```
+
+### User Alignment Checkpoints
+
+In `guided` and `onboarding` mode, before moving from type-graph population to
+fiber-graph population, summarize what was created and ask for confirmation
+unless the human explicitly requested automatic continuation.
+
+## 1. Purpose
+
+This control protocol tells Codex how to populate a type graph and a graph
+fibered over it by traversing generated loop specs.
+
+The control target is not "do research until the graph looks good." The target
+is:
+
+```text
+read generated protocol bundle
+read cursor and log
+identify the next legal loop action
+perform that bounded action
+write or update graph JSON
+validate the relevant graph state
+log evidence
+advance cursor or stop
+```
+
+This document is the operational counterpart to the protocol schema.
+
+The schema designs the loops. This control protocol executes the loops.
+
+## 1.1 Graph Build Target Execution Contract
+
+If `manifest.graph_build_target` exists, Codex must treat it as the run's
+completion contract.
+
+The graph-build target must be read before deriving the next legal action. It
+must define, directly or by derivation:
+
+```text
+type_node_target_count
+type_edge_target_count
+fiber_node_target_count
+fiber_edge_target_count
+instances_per_node_type
+instances_per_edge_type
+```
+
+For example:
+
+```text
+10 node types
+10 instances of each node type
+5 edge types
+10 instances of each edge type
+```
+
+derives:
+
+```text
+type_node_target_count: 10
+type_edge_target_count: 5
+fiber_node_target_count: 100
+fiber_edge_target_count: 50
+```
+
+The run is not complete until those counts are met, graph validation passes,
+and the execution log records the target comparison. If the targets cannot be
+met under the source policy, stop with a failure report that names the unmet
+target, sources checked, safe resume point, and recommended next action.
+
+For graph-build targets, counts are semantic counts:
+
+```text
+type_node_target_count = base entity types, not query-derived cohorts/views
+type_edge_target_count = base relation types, not query-derived edges/views
+```
+
+Base node types are not views. Base edges are not queries. If a proposed type
+or edge can be obtained only by filtering, joining, projecting, path traversal,
+co-membership testing, transitive closure, or materializing a query result, it
+does not count toward the base graph target.
+
+## 1.2 Dotted Loop Path Semantics
+
+The generated control loop plan may use notation such as `Phase.Stage.Action`,
+`Type.Instance.Action`, or another dotted path. The literal words are not
+special.
+
+The required semantic form is:
+
+```text
+LoopClass.LoopClass...LoopClass.Action
+```
+
+Each nonterminal segment is a loop level with:
+
+- iterator;
+- target count;
+- current cursor field;
+- allowed writes;
+- evidence rule;
+- validation rule;
+- handoff rule.
+
+The terminal segment is the bounded action executed at the current cursor
+position.
+
+Examples:
+
+```text
+TypeSetDiscovery.SourceBatch.ResearchCandidateTypes
+TypeFieldDiscovery.Type.SourceBatch.SearchFieldCandidates
+TypeEdgeDiscovery.EnrichedTypePair.SourceBatch.SearchRelationCandidates
+TypeEdgeFieldDiscovery.EdgeType.SourceBatch.SearchRelationFieldCandidates
+InstancePopulation.Type.SourceBatch.WriteInstanceNodes
+EdgePopulation.EdgeType.SourceBatch.WriteEdgeInstances
+```
+
+When `manifest.control_loop_plan` exists, Codex must use it to derive the next
+legal action before relying on prose in the domain protocol. The control loop
+plan is the explicit serialized form of the implicit nested loop.
+
+## 2. Required Inputs
+
+An invocation of this control protocol must provide the execution-phase inputs.
+For the execution phase of `MAKE-GRAPH`, the effective mode is still
+`EXECUTE-BUNDLE`; the macro identity is read from the generated manifest.
+
+```text
+mode: EXECUTE-BUNDLE
+interaction_level
+diagnostic_verbosity
+protocol_root
+run_id
+```
+
+Optional but recommended inputs:
+
+```text
+candidate_graph_root
+source_policy
+continue_until
+validation_mode
+```
+
+Example:
+
+```text
+mode: EXECUTE-BUNDLE
+interaction_level: guided
+diagnostic_verbosity: normal
+protocol_root: assets/protocol_assets/bundles/example_domain/protocol_001
+run_id: run_001
+candidate_graph_root: assets/protocol_assets/bundles/example_domain/protocol_001/candidate_graphs
+validation_mode: bootstrap
+continue_until: first_completed_action
+```
+
+If `continue_until` is omitted, Codex should execute one bounded action and
+stop after updating cursor and log.
+
+Exception: if the manifest contains `graph_build_target.completion_target:
+graph_build_targets_met`, omitted `continue_until` means:
+
+```text
+continue_until: graph_build_targets_met
+```
+
+For graph-build runs, one completed action is not success. Bundle creation,
+empty graph initialization, source-scope setup, and first-action completion are
+prerequisites. Success requires the requested graph target counts to be met and
+validated, or a precise stop condition to be logged.
+
+## 3. Required Bundle Files
+
+Before any population action, verify that the protocol bundle contains:
+
+```text
+manifest.json
+graph_population_protocol.md
+control_loop_plan.md, required for `MAKE-GRAPH` and whenever referenced by manifest.control_loop_plan.location
+loop_specs/
+candidate_graphs/
+runs/<run_id>/cursor.json
+runs/<run_id>/execution_log.md
+runs/<run_id>/reports/generated_bundle_acceptance_report.md, when the bundle came from `MAKE-GRAPH`
+runs/<run_id>/source_batch_plan.md, when source lookup is used
+runs/<run_id>/source_batches/, when source batches influence graph contents
+runs/<run_id>/batch_packets/, when batch execution occurs
+runs/<run_id>/reports/, when staged selections influence graph contents
+runs/<run_id>/tool_outputs/, when existing graph tools are run
+```
+
+The manifest must identify:
+
+- protocol ID;
+- domain;
+- type graph ID;
+- fiber graph ID;
+- projection;
+- candidate graph root;
+- canonical `ordered_loop_specs`;
+- graph build target, when the bundle came from a `MAKE-GRAPH` request;
+- control loop plan, when the bundle came from a `MAKE-GRAPH` request;
+- `make_graph_orchestration`, when the bundle came from a `MAKE-GRAPH` request;
+- generated-bundle acceptance report path, when the bundle came from a
+  `MAKE-GRAPH` request;
+- run state paths;
+- run artifact paths for source batches, batch packets, Markdown reports, and
+  graph-tool output logs;
+- path reconciliation fields;
+- run contract completeness fields.
+
+If any required file is absent, stop and report the missing file. Do not infer
+the missing control surface from memory.
+
+If the manifest does not contain `ordered_loop_specs`, stop before execution.
+Do not reconstruct the run order from filenames or prose.
+
+If `run_contract_completeness.status` is absent or not `complete`, stop before
+execution and produce a failure report naming the missing contract field.
+
+The generated-bundle acceptance report is a handoff proof from the schema
+phase. It must exist for `MAKE-GRAPH`, but it is not a substitute for this
+control protocol's run-contract completeness check.
+
+For `MAKE-GRAPH`, the acceptance report must show one of:
+
+```text
+generated_bundle_acceptance: passed
+generated_bundle_acceptance: validation_unavailable_stop
+```
+
+Only `generated_bundle_acceptance: passed` authorizes execution. If the report
+is missing, unreadable, records failure, or records
+`validation_unavailable_stop`, stop before execution with
+`incomplete_run_contract` or `validation_unavailable`, whichever names the
+smallest failing surface.
+
+## 4. Run Contract Completeness
+
+Before deriving the next legal action, verify that the generated bundle has a
+complete run contract.
+
+The contract is complete only if:
+
+- `mode` is `EXECUTE-BUNDLE` for the invocation;
+- `manifest.ordered_loop_specs` exists and all listed files exist;
+- every loop spec contains the required headings;
+- every loop spec defines source boundaries;
+- every loop spec defines validation as a command, named checklist, or
+  unavailable-stop rule;
+- the manifest records declared graph paths and path reconciliation policy;
+- type-set discovery and type-set freeze gates are defined;
+- type-set discovery defines a candidate-pool size rule and a type diversity
+  gate;
+- type-set discovery defines base entity type admission and query-derived type
+  rejection rules;
+- type-field discovery iterates over the frozen type set, one type at a time;
+- type-field review records complete, deferred, or blocked field discovery for
+  every frozen type;
+- type-field review includes a field richness gate that does not count
+  source-adapter fields as sufficient by themselves;
+- type-edge discovery begins only after the enriched type set exists;
+- type-edge discovery searches meaningful relations from enriched type
+  knowledge and rejects filler/source-convenience relations;
+- type-edge discovery defines predicate-family identity and a relation-family
+  diversity gate;
+- type-edge discovery defines base relation admission and query-derived
+  relation rejection rules;
+- type-edge review/freeze is defined;
+- type-edge-field discovery iterates over frozen edge types, one edge type at
+  a time;
+- edge-field review records complete, deferred, or blocked field discovery for
+  every frozen edge type;
+- edge-field review includes a relation-field richness gate that does not
+  count endpoint/source/provenance fields as sufficient by themselves;
+- the type graph ready gate is defined after those staged projects and before
+  any fiber-graph loop;
+- edge-instance discovery loops define budgets and a frontier output;
+- edge-field completion loops define missing-value policy and a frontier
+  output;
+- source-crawling loops define source adapters, timeout/retry behavior,
+  fallback behavior, rate-limit behavior, and partial-success policy;
+- source-crawling and large graph-processing loops define batch execution,
+  batch logging, checkpointing, and resume behavior;
+- batch-capable loops define `batch_execution_meaning`,
+  `batch_plan_path`, and `batch_markdown_packet_path`;
+- source-crawling loops define repo-local source batch cache paths before
+  source results may influence graph contents;
+- graph-shaping loops define Markdown decision report paths before graph JSON
+  may be written;
+- semantic iteration is owned by Markdown loop specs, cursor state, execution
+  logs, and decision reports;
+- generated code is forbidden from owning graph-building traversal, selection,
+  or graph JSON writes;
+- existing graph-tool outputs, if any, are logs only and cannot choose graph
+  contents or advance graph-building loops;
+- no required run state lives only in `/tmp`, `/private/tmp`, terminal output,
+  model memory, or generated code;
+- instance-discovery loops define deduplication and entity-resolution rules;
+- field-discovery loops define field tiers and missing-value policies;
+- field-completion loops define when missing field values block, defer, or
+  allow continuation;
+- if `manifest.graph_build_target` exists, the target counts are derivable;
+- if `manifest.graph_build_target` exists, `manifest.control_loop_plan` binds
+  those counts to loop completion rules;
+- if `manifest.graph_build_target` exists, `control_loop_plan.md` exists as a
+  dedicated file and is referenced by `manifest.control_loop_plan.location`;
+- if `manifest.graph_build_target.front_door_mode` is `MAKE-GRAPH`,
+  `manifest.make_graph_orchestration` records
+  `GENERATE-BUNDLE -> ACCEPT-GENERATED-BUNDLE -> EXECUTE-BUNDLE` and
+  `repo_local_artifacts_only`;
+- if `manifest.graph_build_target.front_door_mode` is `MAKE-GRAPH`,
+  `runs/<run_id>/reports/generated_bundle_acceptance_report.md` exists and
+  records `generated_bundle_acceptance: passed`;
+- cursor and execution log paths exist;
+- for a newly generated bundle or empty execution log, the initial cursor
+  scaffold matches the schema-defined `not_started` state;
+- for a newly generated bundle or empty execution log, the initial execution
+  log scaffold declares `initialized_no_execution_actions` and `entries_status:
+  none`;
+- if the execution log has no entries, `cursor.last_log_entry_id` is `null`;
+- the first legal action can be identified without guessing.
+
+If the contract is incomplete, stop with `incomplete_run_contract` and write a
+failure report.
+
+## 5. Graph Tool Compatibility Gates
+
+Before accepting generated graph JSON as usable, verify that it is compatible
+with the repository's Python graph tools.
+
+The control protocol must treat graph IDs as protocol data:
+
+```text
+type_graph_id
+fiber_graph_id
+candidate_graph_root
+```
+
+It must not assume any domain-specific graph names.
+
+The graph root is compatible only if it can be loaded as:
+
+```python
+load_graph_bundle(
+    graph_root="<candidate_graph_root>",
+    type_graph_id="<type_graph_id>",
+    fiber_graph_id="<fiber_graph_id>",
+)
+```
+
+When a loop writes or updates graph JSON, the next validation gate should use
+the declared graph IDs:
+
+```bash
+uv run ortelius validate --graph-root <candidate_graph_root> --type-graph-id <type_graph_id> --fiber-graph-id <fiber_graph_id> --mode bootstrap
+```
+
+Before a run claims that generated graph JSON is materially usable, it should
+also run or explicitly defer:
+
+```bash
+uv run ortelius inspect --graph-root <candidate_graph_root> --type-graph-id <type_graph_id> --fiber-graph-id <fiber_graph_id>
+uv run ortelius materialize networkx --graph-root <candidate_graph_root> --type-graph-id <type_graph_id> --fiber-graph-id <fiber_graph_id>
+uv run ortelius materialize pyg --graph-root <candidate_graph_root> --type-graph-id <type_graph_id> --fiber-graph-id <fiber_graph_id>
+uv run ortelius materialize dgl --graph-root <candidate_graph_root> --type-graph-id <type_graph_id> --fiber-graph-id <fiber_graph_id>
+```
+
+If graph-tool validation fails, stop with `validation_failed` and include the
+tool output in the technical failure report.
+
+If a materializer is unavailable because an optional dependency is missing,
+report that as an optional dependency condition rather than as graph-data
+failure.
+
+### 5.1 Materializer Status Policy
+
+Protocol-generated graph records normally enter as `candidate` records. Some
+materializers or CLI commands may default to accepted records only.
+
+Before reporting a materializer smoke result, identify:
+
+```text
+included_statuses
+record_status_counts
+expected_nonempty_statuses
+materializer_default_status_policy
+```
+
+If an accepted-only materialization is empty but the candidate graph contains
+candidate records, do not report that the graph is empty. Report:
+
+```text
+accepted_only_materialization_empty
+candidate_inclusive_materialization_required
+```
+
+and run a candidate-inclusive materializer smoke when available.
+
+If no candidate-inclusive materializer path exists, log the limitation and keep
+the graph validation result separate from the materializer smoke result.
+
+## 6. Externalized Program Counter
+
+The cursor file is the externalized program counter.
+
+Candidate cursor shape:
+
+```json
+{
+  "schema_version": "ortelius.protocol_cursor.v0",
+  "run_id": "run_001",
+  "protocol_id": "protocol_001",
+  "status": "not_started",
+  "active_loop_id": null,
+  "active_action_id": null,
+  "active_iteration": {
+    "current_project": null,
+    "current_type_id": null,
+    "current_type_pair": null,
+    "current_edge_type_id": null,
+    "current_batch_id": null
+  },
+  "completed_loop_ids": [],
+  "completed_action_ids": [],
+  "blocked_on": null,
+  "last_log_entry_id": null,
+  "updated_at": null
+}
+```
+
+The execution log is the write-ahead trace. It must explain why the cursor
+moved.
+
+For a newly generated bundle, or for any run whose execution log declares no
+entries, the execution log must start with this scaffold:
+
+```text
+# Execution Log
+
+schema_version: ortelius.protocol_execution_log.v0
+run_id: <run_id>
+protocol_id: <protocol_id>
+log_status: initialized_no_execution_actions
+entries_status: none
+```
+
+When `entries_status: none`, the cursor must remain in the initial state:
+
+- `status` is `not_started`;
+- `active_loop_id` and `active_action_id` are `null`;
+- every field in `active_iteration` is `null`;
+- `completed_loop_ids` and `completed_action_ids` are empty arrays;
+- `blocked_on` is `null`;
+- `last_log_entry_id` is `null`.
+
+If the execution log contains no entries but the cursor claims completed
+actions, an active loop, or a non-null `last_log_entry_id`, stop with
+`cursor_log_conflict`.
+
+If the execution log contains real entries, treat the run as a resume and
+verify cursor/log consistency against those entries instead of resetting to the
+initial scaffold.
+
+The cursor is not trusted blindly. Repository reality outranks cursor state.
+If the cursor claims an action completed but the expected file change or log
+entry is missing, stop and reconcile before continuing.
+
+### 6.1 Cursor Status Vocabulary
+
+Allowed cursor statuses:
+
+```text
+not_started
+running
+completed
+blocked
+failed
+paused
+needs_repair
+superseded
+```
+
+Status meanings:
+
+- `not_started`: no action has been executed for this run.
+- `running`: an action or loop is currently active.
+- `completed`: the requested run scope is complete.
+- `blocked`: progress requires Project Owner input, missing files, missing
+  sources, or another external resolution.
+- `failed`: an action produced an unrepaired invalid state.
+- `paused`: execution stopped because the invocation scope ended, not because
+  the run is blocked.
+- `needs_repair`: repo reality, cursor, log, or generated bundle structure
+  disagree and must be reconciled before ordinary execution continues.
+- `superseded`: this run state has been replaced by another run.
+
+Legal status transitions:
+
+```text
+not_started -> running
+not_started -> blocked
+running -> paused
+running -> completed
+running -> blocked
+running -> failed
+running -> needs_repair
+paused -> running
+blocked -> running
+blocked -> superseded
+failed -> needs_repair
+needs_repair -> running
+needs_repair -> blocked
+needs_repair -> superseded
+```
+
+Any transition not listed above requires an explicit log entry explaining the
+exception.
+
+## 7. Dispatcher Cycle
+
+Every control pass follows this cycle:
+
+```text
+1. Read this control protocol.
+2. Read manifest.json.
+3. Read graph_population_protocol.md.
+4. Read the ordered loop specs.
+5. Read cursor.json.
+6. Read execution_log.md.
+7. Verify run contract completeness.
+8. Reconcile declared graph paths with observed repository paths.
+9. Inspect graph JSON state relevant to the next loop.
+10. Derive the next legal action.
+11. Execute exactly that bounded action.
+12. Validate the affected graph state.
+13. Append an execution-log entry.
+14. Update cursor.json.
+15. Continue only if the invocation explicitly allows continuation and no stop
+    condition has fired.
+```
+
+The core rule is:
+
+```text
+Make the next legal move obvious before making it.
+```
+
+## 8. Next Legal Action Rule
+
+Codex must derive the next legal action from this precedence order:
+
+```text
+newest user instruction
+Prime Directive and safety rules
+this control protocol
+manifest ordered_loop_specs
+current loop spec
+generated domain protocol
+cursor.json
+execution_log.md
+repository reality
+```
+
+Repository reality can invalidate cursor or log state. A newer user
+instruction can redirect the run.
+
+`manifest.ordered_loop_specs` is the canonical execution spine. If manifest
+order conflicts with generated domain protocol prose, loop-spec filenames, or
+document section order, the manifest order wins unless the newest user
+instruction overrides it.
+
+Codex must not skip ahead because a later loop looks easier or more
+interesting.
+
+## 9. Loop Traversal Semantics
+
+Each loop spec defines:
+
+- loop ID;
+- graph level;
+- iterator;
+- current item;
+- action template;
+- evidence requirement;
+- write rule;
+- validation rule;
+- completion rule;
+- stop conditions.
+
+Each loop spec must also contain the required headings defined by
+`graph_population_protocol_schema.md`:
+
+```text
+Loop Identity
+Inputs
+Iterator
+Current Item Shape
+Action Template
+Allowed Writes
+Source Boundaries
+Batch Execution
+Evidence Required
+Validation Required
+Completion Rule
+Stop Conditions
+Handoff
+```
+
+If any required heading is missing, stop before execution and report
+`incomplete_loop_spec`.
+
+The control protocol interprets the loop spec as cursor-bound Markdown
+traversal, not as a hidden runtime loop:
+
+```text
+read iterator definition
+read cursor current item
+bind current_project and the loop's current item fields
+bind current_type_id, current_type_pair, current_edge_type_id, or current_batch_id when applicable
+execute exactly one bounded Markdown action for the current item
+write only Markdown-authorized output
+validate allowed output
+log evidence
+advance cursor to the next explicit item or stop
+```
+
+The loop is not mechanically executed by a hidden runtime. It is stabilized by
+reading explicit loop state, acting, recording evidence, and resuming from
+externalized state.
+
+## 10. Type-Graph Execution Order
+
+The type graph must be populated before the fiber graph.
+
+Required order:
+
+```text
+domain suitability
+graph JSON initialization
+type set discovery
+type set review and freeze
+type field discovery for each frozen type
+type field review
+type edge discovery from enriched types
+type edge review and freeze
+type edge field discovery for each frozen edge type
+type graph ready gate
+```
+
+### 10.1 Domain Suitability
+
+Confirm that the domain has plausible typed entities, typed relations,
+instances, and sources.
+
+If suitability fails, write a log entry and set cursor status to `blocked` or
+`failed`. Do not continue to graph population.
+
+### 10.2 Graph JSON Initialization
+
+Confirm or create candidate JSON files for both graph levels.
+
+Do not write accepted canonical graph facts unless the invocation explicitly
+authorizes canonical writes.
+
+### 10.3 Type Set Discovery
+
+This is a broad research project. The executor may inspect allowed sources to
+understand the domain and propose a candidate set of ordinary domain entity
+types.
+
+This loop may write only type-node candidates and type-discovery frontier
+records. It must not perform deep field discovery, write type edges, populate
+fiber nodes, or populate fiber edges.
+
+Before freezing the type set, verify that the generated type candidate report
+contains:
+
+```text
+candidate_type_pool_min_count
+candidate_type_pool_observed_count
+base_entity_type_admission_gate_result
+query_derived_type_rejection_gate_result
+type_diversity_scores
+rejected_type_candidates
+deferred_type_candidates
+type_diversity_gate_result
+```
+
+For graph-build runs, the observed candidate pool should be at least twice the
+requested node-type count unless a source-depth or domain-scope limitation is
+logged. If the report only lists the selected types and no rejected/deferred
+alternatives, stop with `type_diversity_report_missing`.
+
+For each requested type candidate:
+
+- inspect allowed sources or supplied evidence;
+- propose one type node;
+- verify that the candidate is an ordinary domain entity type, not a source
+  taxonomy class, schema category, provenance/evidence class, source-system
+  label, classification bucket, helper type, metadata type, or relation
+  placeholder;
+- verify that membership in the candidate type is not defined only by a query,
+  filter, join, graph path, role intersection, source taxonomy filter,
+  computed cohort, or analytical view;
+- verify that instances of this type could exist independently of the source
+  system;
+- verify that the type is not being introduced merely to satisfy a count target
+  or make edge construction easier;
+- log field and relation hints to the generated frontiers instead of treating
+  them as completed field or edge work;
+- write the candidate to type-graph nodes JSON;
+- include source/provenance/review scaffolds;
+- log why the candidate belongs in the type graph.
+
+If the candidate fails this admission rule, reject it or stop with
+`inadmissible_type_node`. Do not write it to satisfy the requested node-type
+count.
+
+Primitive Type Admission Rule:
+
+```text
+If a candidate type is equivalent to:
+  base_type WHERE field = value
+  base_type JOIN relation
+  graph path query
+  role intersection
+  source taxonomy filter
+  computed cohort
+  analytical/materialized view
+then reject it as a derived type unless the human explicitly requested an
+analytical/view layer.
+```
+
+If the loop cannot find enough admissible ordinary domain entity types under
+the source policy, stop with `graph_build_target_unmet`. Do not fill the count
+with metadata, source taxonomy, provenance, helper, relation, classification,
+query-derived cohort, role-intersection, path-derived, or analytical-view
+types.
+
+### 10.4 Type Set Review And Freeze
+
+Evaluate the generated `type_set_frozen_gate`.
+
+The gate must confirm:
+
+- the requested type count has been met or a precise unmet-target blocker has
+  been logged;
+- base entity type admission gate passed;
+- query-derived type rejection gate passed;
+- type diversity gate passed or logged a precise limitation;
+- selected types are nonredundant ordinary domain roles, not just variants of
+  one source category;
+- every type node is an ordinary domain entity type;
+- rejected and deferred type candidates are outside the frozen set;
+- source taxonomy, schema, provenance, evidence, helper, classification, and
+  relation-placeholder types are not counted;
+- query-derived cohorts, role intersections, path-derived classes, and
+  analytical views are not counted;
+- the next loop iterates over exactly the frozen type nodes.
+
+After this gate passes, do not silently add new type nodes. New type ideas
+found later go to a frontier or to an explicit repair/revision action.
+
+### 10.5 Type Field Discovery For Each Frozen Type
+
+For each frozen type node:
+
+- set `active_iteration.current_type_id`;
+- run the current loop's deep type-specific field search;
+- identify fields needed to recognize, dedupe, source, compute, and describe
+  records of that specific type;
+- add field metadata to `type_fields`;
+- include cardinality, value kind, description, source policy, field tier,
+  missing-value policy, enrichment priority, and allowed source adapters;
+- log sources checked, rejected fields, deferred fields, and relation-shaped
+  field discoveries.
+
+If this loop reveals that the current frozen type is actually a query-derived
+cohort, role intersection, source taxonomy class, path-derived class, or
+analytical view, stop with `derived_type_discovered_after_freeze` or write the
+generated type-set repair frontier item required by the loop spec. Do not
+continue treating it as a valid base type.
+
+The executor must verify that the per-type field report distinguishes:
+
+```text
+identity fields
+source-adapter fields
+domain-descriptive fields
+relation-affordance fields
+rejected/deferred field candidates
+```
+
+For graph-build runs meant to produce semantically rich output, source-adapter
+fields such as source ID, URL, coordinates, source category, or display label
+do not satisfy field richness by themselves. If no richer fields can be
+supported, the run must log `type_field_richness_limited` with sources checked
+and a revisit frontier.
+
+While this loop is active, do not invent new type nodes, write type edges, or
+populate upstairs records. Out-of-phase discoveries go to the appropriate
+frontier.
+
+Field tiers are:
+
+```text
+identity_field
+source_adapter_field
+domain_descriptive_field
+computed_field
+review_or_provenance_field
+```
+
+Do not treat source-adapter fields alone as deep domain field discovery. If no
+domain-descriptive fields can be supported yet, log
+`domain_descriptive_field_status: unavailable_at_current_source_depth` and
+write a field-enrichment frontier entry.
+
+### 10.6 Type Field Review
+
+Evaluate the generated `type_fields_complete_gate`.
+
+For every frozen type, the gate must record one of:
+
+```text
+fields_complete
+fields_partially_complete_with_frontier
+fields_blocked
+```
+
+The run may proceed to edge discovery only after this review is logged. If an
+identity field is missing, or if no domain-descriptive field can be supported,
+the log must say whether that blocks the graph-build target or is a documented
+deferment.
+
+The review must also record `type_field_richness_gate_result`. If that result
+is absent, stop with `type_field_richness_gate_missing`.
+
+### 10.7 Type Edge Discovery From Enriched Types
+
+This project begins only after type-field review. It must use the enriched
+type records, relation-shaped field frontier entries, and allowed sources to
+discover meaningful directed relation types.
+
+For graph-build runs, the executor must treat `edge_type_count` as a requested
+count of distinct predicate families unless the manifest explicitly says the
+human requested endpoint variants of one predicate family.
+
+Before freezing the edge set, verify that the relation candidate report
+contains:
+
+```text
+candidate_relation_family_pool_min_count
+candidate_relation_family_observed_count
+base_relation_admission_gate_result
+query_derived_relation_rejection_gate_result
+predicate_family for each candidate
+why_each_selected_family_is_distinct
+rejected_relation_candidates
+deferred_relation_candidates
+relation_family_diversity_gate_result
+source_diversity_or_limitation_result
+```
+
+If the report only lists selected edges and no rejected/deferred relation
+families, stop with `relation_diversity_report_missing`.
+
+Endpoint variants of the same predicate do not count as separate relation
+families. For example, these count as one family unless the manifest declares
+an endpoint-variant target:
+
+```text
+restaurant -> street : located_on
+cafe -> street : located_on
+school -> street : located_on
+```
+
+If one source adapter only exposes one cheap predicate family, use another
+source class when available or stop with `relation_family_diversity_unmet`.
+
+For each generated relation-search work item, such as an enriched type pair,
+type neighborhood, or relation frontier item:
+
+- set `active_iteration.current_type_pair` when the iterator is a pair;
+- choose source type and target type;
+- assign a `predicate_family`;
+- verify that the predicate family is distinct from already counted relation
+  families;
+- define the directed arrow from source type to target type;
+- verify that the relation is an ordinary domain relation between concrete
+  upstairs instances;
+- verify that the relation is a primitive, source-attested base relation, not
+  a query-derived relation, one-mode projection, path-derived edge,
+  co-membership shortcut, transitive closure, or materialized query result;
+- verify that the relation is not `classified_as`, `has_type`, `instance_of`,
+  `source_classified_as`, `derived_from_source_class`, `has_source`,
+  `mentioned_in`, `evidence_for`, or another provenance/evidence/source-system
+  relation;
+- verify that the relation does not merely restate `fiber_node.type_id`,
+  `fiber_edge.type_id`, a record field, source metadata, or source taxonomy;
+- verify that the relation is not being introduced merely to satisfy an
+  edge-type count target;
+- reject proximity-only, source-convenience, and computed helper relations
+  unless the requested domain explicitly treats that relation as a real
+  relation of interest;
+- reject co-membership or co-affiliation projections such as
+  `shares_school_with`, `shares_award_with`, or
+  `has_same_source_category_as`;
+- reject path-derived relations such as `student_of_student_of` or
+  `connected_to_through`;
+- reject transitive-closure and materialized-view relations;
+- write relation-field hints to the edge-field frontier instead of treating
+  them as completed relation-field discovery;
+- write the type edge only if both endpoint type nodes exist;
+- log the domain rationale and evidence.
+
+If the candidate fails this admission rule, reject it or stop with
+`inadmissible_type_edge`. Do not write it to satisfy the requested edge-type
+count.
+
+Primitive Edge Admission Rule:
+
+```text
+Deep relation does not mean compound relation.
+
+A base type edge may be written only when the relation is a primitive,
+domain-native, source-attested relation. If the relation can be produced by
+SQL query, graph traversal, path composition, one-mode projection,
+co-membership test, transitive closure, rule inference, or materialized view,
+reject it as a derived relation.
+```
+
+If the candidate is admissible but duplicates an already counted predicate
+family, it may be logged as an endpoint variant, but it must not increment the
+graph-build edge-type target unless endpoint variants are explicitly in scope.
+
+The type edge is the relation type. Do not create a separate relation-type
+object outside the type graph edges JSON file.
+
+All graph edges are directed. If a relation should be treated symmetrically,
+write or request two directed type edges, one in each direction. Do not encode
+symmetry as one undirected edge, and do not assume that an inverse edge exists
+unless the type graph explicitly contains it.
+
+### 10.8 Type Edge Review And Freeze
+
+Evaluate the generated `edge_set_frozen_gate`.
+
+The gate must confirm:
+
+- the requested edge-type count has been met or a precise unmet-target blocker
+  has been logged;
+- base relation admission gate passed;
+- query-derived relation rejection gate passed;
+- relation family diversity gate passed;
+- distinct predicate-family count meets the requested edge-type count unless
+  endpoint variants are explicitly in scope;
+- every type edge is an ordinary domain relation between eligible ordinary
+  domain entity types;
+- no source taxonomy, schema, provenance, evidence, helper, proximity-only,
+  type-membership, or classification relation is counted;
+- no query-derived, projected, path-derived, co-membership, transitive-closure,
+  or materialized-view relation is counted;
+- every type edge has directed source and target type IDs;
+- rejected and deferred relation candidates are outside the frozen set;
+- the next loop iterates over exactly the frozen type edges.
+
+After this gate passes, do not silently add new type edges. New relation ideas
+found later go to a frontier or to an explicit repair/revision action.
+
+### 10.9 Type Edge Field Discovery For Each Frozen Edge Type
+
+For each frozen type edge:
+
+- set `active_iteration.current_edge_type_id`;
+- run the current loop's deep relation-specific field search;
+- identify fields needed to recognize, source, compute, and describe instances
+  of that specific relation;
+- add field metadata to the type edge's `type_fields`;
+- include cardinality, value kind, description, source policy, field tier,
+  missing-value policy, enrichment priority, and allowed source adapters;
+- log sources checked, rejected edge fields, deferred edge fields, and
+  edge-instance hints.
+
+The executor must verify that relation fields describe the predicate family,
+not merely the endpoints or source adapter. Source ID, source URL, source node,
+target node, address, coordinate, and provenance fields are useful, but they do
+not satisfy relation-field richness by themselves.
+
+If edge-field discovery reveals that the current frozen edge is actually a
+query-derived relation, one-mode projection, path-derived edge, co-membership
+shortcut, transitive closure, or materialized query result, stop with
+`derived_relation_discovered_after_freeze` or write the generated edge-set
+repair frontier item required by the loop spec. Do not continue treating it as
+a valid base edge.
+
+If no relation-descriptive field can be supported for the current edge type,
+log `relation_field_richness_limited` with sources checked, reason, and a
+revisit frontier.
+
+While this loop is active, do not invent new type nodes, silently add new type
+edges, or populate upstairs edge instances. Out-of-phase discoveries go to the
+appropriate frontier.
+
+Evaluate the generated `edge_fields_complete_gate` before the type graph ready
+gate. For every frozen type edge, the gate must record one of:
+
+```text
+edge_fields_complete
+edge_fields_partially_complete_with_frontier
+edge_fields_blocked
+```
+
+The edge-field review must also record
+`relation_field_richness_gate_result`. If that result is absent, stop with
+`relation_field_richness_gate_missing`.
+
+### 10.10 Type Graph Ready Gate
+
+Run the relevant validation gate.
+
+Validation must be one of:
+
+1. an actual command recorded in the loop spec;
+2. a named manual checklist recorded in the loop spec;
+3. unavailable, in which case the run must stop with
+   `validation_unavailable`.
+
+The validation gate must check:
+
+- type node IDs unique;
+- type edge IDs unique;
+- type edge endpoints exist;
+- type node fields are well formed;
+- type edge fields are well formed;
+- source/provenance/review scaffolds exist.
+
+The loop must also evaluate the generated `type_graph_ready_gate`:
+
+```text
+min_type_nodes
+min_type_edges
+type_set_frozen
+type_fields_complete_or_deferred
+edge_set_frozen
+edge_fields_complete_or_deferred
+required_type_fields_complete
+required_edge_fields_complete
+type_diversity_gate_result
+base_entity_type_admission_gate_result
+query_derived_type_rejection_gate_result
+type_field_richness_gate_result
+base_relation_admission_gate_result
+query_derived_relation_rejection_gate_result
+relation_family_diversity_gate_result
+relation_field_richness_gate_result
+source_diversity_or_limitation_result
+fiber_population_eligibility_review_complete
+eligible_type_node_count
+eligible_type_edge_count
+allow_instance_population_with_zero_edges
+validation_required
+```
+
+Before fiber graph passes begin, every type node and type edge must have an
+explicit `fiber_population_eligible: true | false` decision or equivalent
+review metadata in the generated protocol/log. Missing eligibility is a stop
+condition: `missing_fiber_population_eligibility`.
+
+A type node is eligible only if it represents an ordinary domain entity type
+whose concrete instances should appear upstairs. Query-derived cohorts, source
+taxonomy classes, role intersections, path-derived classes, and analytical
+views are not eligible base types.
+
+A type edge is eligible only if it represents an ordinary domain relation
+between concrete upstairs instances. Query-derived relations, one-mode
+projections, co-membership shortcuts, path-derived edges, transitive closures,
+and materialized query results are not eligible base relations.
+
+Ineligible records include source taxonomy classes, schema categories,
+provenance/evidence objects, type labels, classification buckets, helper
+metadata nodes, source-classification relations, type-membership relations, and
+provenance/evidence/source relations. They also include query-derived cohorts,
+role intersections, analytical views, projected relations, path-derived
+relations, co-membership relations, and materialized query relations.
+
+The fiber graph passes may not begin until the `type_graph_ready_gate` is
+passed and logged.
+
+If validation fails, repair within the current bounded action if obvious.
+Otherwise stop and log the failure.
+
+## 11. Fiber-Graph Execution Order
+
+The fiber graph may start only after the staged type-set, type-field,
+type-edge, edge-field, and `type_graph_ready_gate` checks all pass or log
+permitted deferrals.
+
+Required order:
+
+```text
+instance target selection
+instance discovery
+instance field completion
+edge instance discovery
+edge instance field completion
+fiber graph review
+```
+
+### 11.1 Instance Target Selection
+
+For each fiber-population-eligible type node, determine or read the target
+number of instances to find.
+
+Do not iterate over every type node blindly. If a requested count says
+"instances of each type," "each type" means each eligible ordinary domain
+entity type, not metadata, source taxonomy, schema, classification, evidence,
+provenance, query-derived cohort, role-intersection, path-derived, or
+analytical-view types.
+
+If a target count is missing and cannot be derived from the generated protocol,
+stop and ask for the missing decision.
+
+### 11.2 Instance Discovery
+
+For each fiber-population-eligible type node and target count:
+
+- search allowed sources for concrete instances;
+- deduplicate against existing candidate nodes;
+- write each candidate node with a valid `type_id`;
+- include identity evidence;
+- stop when the target count is reached or no defensible candidate remains.
+
+Do not write a fiber node whose label is merely a downstairs type label, source
+taxonomy label, schema class, provenance/evidence class, or classification
+bucket. The fiber node's `type_id` is already the projection to the type graph;
+do not create an ordinary fiber edge to restate that projection.
+
+Do not write a fiber node under a type whose membership is a query-derived
+cohort, source taxonomy filter, role intersection, path-derived class, or
+analytical view. Those belong in fields, relations, saved queries, or future
+analytical layers, not in the base fiber graph.
+
+### 11.3 Instance Field Completion
+
+For each discovered node:
+
+- read the node's type fields from the type graph;
+- attempt to fill each declared field;
+- write field values with status, confidence, sources, and notes;
+- record blocked or unknown fields explicitly rather than inventing values.
+
+The executor must distinguish record lifecycle status from field-value
+evidence status. A graph record can remain `candidate` while a field value
+inside it has `status: accepted` because that value is source-supported.
+
+For a missing field value, follow the field's `missing_value_policy`:
+
+```text
+identity_blocking -> stop or reject the candidate record
+required_blocks_record_acceptance -> keep candidate, mark field blocked, do not promote
+candidate_allowed_with_missing_value -> continue and log missing field
+optional_omit_when_missing -> omit the field and log only if useful
+computed_after_dependencies -> defer until dependency fields exist
+human_review_required -> stop or set review.state to needs_human_review
+```
+
+If the type field lacks a `missing_value_policy`, stop with
+`missing_field_completion_policy` before continuing. Do not silently treat the
+field as optional.
+
+### 11.4 Edge Instance Discovery
+
+Use the type graph to avoid an unconstrained all-pairs edge search.
+
+Before edge instance discovery, read these budgets from the current loop spec:
+
+```text
+max_source_nodes_per_pass
+max_edge_types_per_source_node
+max_target_nodes_per_edge_type
+max_sources_checked_per_relation_question
+max_edges_written_per_pass
+candidate_frontier_output
+batch_execution_meaning
+batch_plan_path
+batch_markdown_packet_path
+batch_item_ids_or_selection_rule
+resume_from_batch_cursor
+source_batch_cache_path
+markdown_report_path
+```
+
+If any budget is missing, stop with `missing_edge_instance_budget`.
+
+Traversal:
+
+```text
+for each source node:
+  read source_node.type_id
+  find fiber-population-eligible type edges whose source_type_id matches source_node.type_id
+  for each matching type edge:
+    find candidate target nodes whose type_id matches target_type_id
+    for each candidate target node:
+      ask whether the relation is supported by allowed sources
+      write edge candidate only when evidence supports it
+```
+
+Every written fiber edge must satisfy:
+
+```text
+source_node.type_id == type_edge.source_type_id
+target_node.type_id == type_edge.target_type_id
+```
+
+Every written fiber edge is directed and maps to exactly one directed type
+edge. If a symmetric concrete relation is supported in both directions, write
+the two directed concrete edges required by the two directed type edges. Do not
+write an undirected edge and do not infer the reverse edge from the forward
+edge.
+
+Do not write fiber edges that restate type membership, source classification,
+provenance, evidence, or schema metadata. Such information belongs in `type_id`,
+fields, source evidence, or review metadata, not in ordinary fiber graph
+relations.
+
+Do not write fiber edges whose support is only that the endpoints share a third
+node, share a field value, share a source category, or are connected by a graph
+path. That is a projection or query-derived relation. A fiber edge requires
+direct evidence for the primitive relation named by the type edge.
+
+If any edge-instance discovery budget is reached, write the remaining unprocessed
+source nodes, edge types, or target nodes to `candidate_frontier_output`, then
+pause or hand off according to the current loop spec.
+
+Do not invent a new type edge to make a concrete relation fit. New relation
+ideas discovered during edge instance discovery go to a relation frontier or
+an explicit repair/revision action.
+
+### 11.5 Edge Instance Field Completion
+
+For each discovered edge:
+
+- read the edge's type fields from the type graph;
+- attempt to fill each declared relation field;
+- write edge-field values with status, confidence, sources, and notes;
+- record blocked or unknown edge fields explicitly rather than inventing
+  values.
+
+If the type-edge field lacks a `missing_value_policy`, stop with
+`missing_edge_field_completion_policy` before continuing. Do not silently treat
+the field as optional.
+
+For a missing edge-field value, follow the field's `missing_value_policy`:
+
+```text
+identity_blocking -> stop or reject the candidate edge
+required_blocks_record_acceptance -> keep candidate, mark field blocked, do not promote
+candidate_allowed_with_missing_value -> continue and log missing field
+optional_omit_when_missing -> omit the field and log only if useful
+computed_after_dependencies -> defer until dependency fields exist
+human_review_required -> stop or set review.state to needs_human_review
+```
+
+### 11.6 Fiber Graph Review
+
+Validate the upstairs graph against the downstairs graph:
+
+- every node has a valid type;
+- every edge has a valid type;
+- every edge endpoint exists;
+- every edge endpoint type matches the type edge;
+- no edge relies on an implicit inverse relation;
+- every field belongs to that record's type fields;
+- no unsupported relationship was written as accepted.
+- no accepted fiber node is an instance of a query-derived cohort,
+  role-intersection, source-taxonomy, path-derived, or analytical-view type;
+- no accepted fiber edge is supported only by projection, co-membership, path
+  composition, transitive closure, or materialized query evidence.
+
+## 12. JSON Write Discipline
+
+Default writes go to the candidate graph root inside the protocol bundle.
+
+Allowed write targets are controlled by the current loop spec.
+
+Type-graph loops may write:
+
+```text
+<candidate_graph_root>/<type_graph_id>/nodes.json
+<candidate_graph_root>/<type_graph_id>/edges.json
+```
+
+Fiber-graph loops may write:
+
+```text
+<candidate_graph_root>/<fiber_graph_id>/nodes.json
+<candidate_graph_root>/<fiber_graph_id>/edges.json
+```
+
+Do not write outside the allowed target for the current loop.
+
+Do not change generated protocol structure while executing population unless
+the current action is explicitly a protocol-revision action.
+
+### 12.1 Path Reconciliation
+
+Before writing graph JSON, compare:
+
+```text
+manifest.graphs.declared_graph_paths
+manifest.graphs.existing_graph_paths_checked
+observed repository paths
+```
+
+If declared paths differ from observed paths, stop with:
+
+```text
+path_reconciliation_required
+```
+
+Do not guess that a nearby graph directory is equivalent to the declared graph
+ID. Do not write to a different graph path because it "looks like" the intended
+target.
+
+## 13. Repo-Local Run Artifact Discipline
+
+Any artifact that affects graph decisions must live in the repository under
+the active run directory:
+
+```text
+<protocol_root>/runs/<run_id>/
+```
+
+Decision-bearing artifacts include:
+
+- source query plans;
+- raw or filtered source batch caches;
+- type-set candidate comparisons;
+- per-type field discovery notes;
+- relation candidate comparisons;
+- per-edge-type field discovery notes;
+- instance selection reports;
+- edge-instance selection reports;
+- graph-tool validation, inspection, or materialization logs.
+
+Do not use `/tmp`, `/private/tmp`, another external scratch directory, shell
+history, or model memory as the only location for decision-bearing run state.
+External temporary files are allowed only as transport buffers. Before their
+contents influence a selection, graph write, validation claim, or final report,
+the relevant content must be copied into the repo-local run artifact tree and
+logged.
+
+Required run artifact paths when the corresponding activity occurs:
+
+```text
+runs/<run_id>/source_batch_plan.md
+runs/<run_id>/source_batches/<batch_id>.json
+runs/<run_id>/reports/<stage_report>.md
+runs/<run_id>/tool_outputs/<tool_run_id>.md
+```
+
+### 13.1 Markdown Loop Ownership Rule
+
+Markdown reports, loop specs, cursor state, and execution logs are the control
+surface for graph-shaping decisions and traversal.
+
+Before writing graph JSON, verify that the relevant Markdown report exists and
+contains a nested-list account of:
+
+- active dotted loop path;
+- loop variable;
+- target count;
+- source batches read;
+- candidates considered;
+- candidates selected;
+- candidates rejected or deferred;
+- selection rule;
+- exact graph records or record templates authorized for writing;
+- validation or gate result.
+
+The executor must not treat generated code as the explanation or mechanism for
+why types, fields, edges, instances, or edge instances were chosen.
+
+If the Markdown report is missing or does not authorize the graph write, stop
+with:
+
+```text
+missing_markdown_decision_report
+```
+
+If the next action requires iteration that is not already explicit in the loop
+spec, control loop plan, cursor, and Markdown report, stop graph writes and
+expand the Markdown loop surface first. If only the next loop level is known,
+create a bounded child-loop-generation action and log that expansion.
+
+### 13.2 Generated Code Loop Prohibition
+
+Generated helper scripts, ad hoc Python, shell scripts, notebooks, and similar
+code artifacts must not perform graph-building loops.
+
+Forbidden generated-code actions:
+
+- traverse `manifest.ordered_loop_specs`;
+- decide or iterate the type set;
+- decide or iterate type fields;
+- decide or iterate type edges;
+- decide or iterate edge fields;
+- select, deduplicate, or count domain instances for graph-population purposes;
+- select or count edge instances for graph-population purposes;
+- transform source batches into graph records;
+- write graph JSON;
+- repair or advance cursor/log state;
+- contain the only executable representation of a graph-building loop.
+
+Allowed tool use is limited to existing repository commands that validate,
+inspect, or materialize graph JSON after Codex has written records from an
+authorized Markdown action. These tools do not own traversal and must not
+choose graph contents.
+
+Tool outputs must be logged under `runs/<run_id>/tool_outputs/` when they
+affect validation, inspection, materialization, or final reporting. A tool
+output is evidence about graph-tool behavior only; it is not a source of graph
+selection, cursor advancement, or graph JSON write instructions.
+
+Before running an existing repository tool, verify that the active loop spec or
+validation gate names:
+
+```text
+tool_id
+command
+purpose
+allowed_inputs
+allowed_outputs
+allowed_writes
+owning_loop_id
+validation_after_run
+tool_output_log
+```
+
+If a generated code loop is requested or appears necessary for graph
+population, stop with:
+
+```text
+generated_code_loop_forbidden
+```
+
+The failure report must name the missing Markdown loop surface, cursor field,
+or report row that would let Codex continue agentically.
+
+If an existing repository tool is needed but the loop spec or validation gate
+does not declare it, stop with:
+
+```text
+tool_not_declared
+```
+
+### 13.3 Source Cache Discipline
+
+Before source results influence a graph-shaping decision, the source batch
+must be persisted under:
+
+```text
+runs/<run_id>/source_batches/<batch_id>.json
+```
+
+Each source batch cache must record:
+
+```text
+batch_id
+loop_id
+source_adapter_id
+query_or_operation
+retrieved_at
+source_endpoint
+source_boundary
+raw_or_filtered_records
+filter_rule_applied
+markdown_report_path
+selection_authority
+returned_count
+selected_count
+rejected_count
+next_batch_cursor
+```
+
+`selected_count` and `rejected_count` are valid only when they summarize the
+named Markdown report. If the cache has no Markdown report path or its
+selection authority is not the Markdown report, do not use it for graph writes.
+Stop with `missing_markdown_decision_report` or repeat the batch with a valid
+Markdown packet/report surface.
+
+If a source query succeeds but its result is only visible in terminal output or
+an external temporary file, the next legal action is to import that result into
+the run artifact tree or discard and repeat the batch. Do not write graph JSON
+from unpersisted source results.
+
+## 14. Evidence Discipline
+
+Every candidate graph record must have evidence appropriate to its status.
+
+Minimum evidence fields:
+
+```text
+sources
+provenance
+review
+```
+
+Field values should include:
+
+```text
+value
+status
+confidence
+sources
+notes
+```
+
+If evidence is absent, the control protocol should prefer:
+
+```text
+status: candidate
+review.state: needs_review
+```
+
+over unsupported `accepted` records.
+
+## 15. Source-Crawl Discipline
+
+Source crawling is always bounded by the current loop spec.
+
+Design reconnaissance from `GENERATE-BUNDLE` is not population evidence by
+itself. If execution uses reconnaissance material to affect graph contents, it
+must import or revalidate that material as an `EXECUTE-BUNDLE` source batch and
+interpret it through the current Markdown packet/report surface.
+
+Before source lookup, identify:
+
+- current loop ID;
+- current item;
+- allowed source kinds;
+- allowed source locations;
+- disallowed sources;
+- source adapter ID;
+- fallback source adapter order;
+- timeout, retry, and backoff policy;
+- batch size and batch runtime budget;
+- repo-local source batch cache path;
+- repo-local Markdown report path that will interpret the batch;
+- target record or field;
+- maximum number of candidates or source checks;
+- evidence standard.
+
+If any source boundary is missing, do not crawl. Stop with
+`missing_source_boundary`.
+
+If any source adapter, timeout, retry, fallback, or batch policy required by
+the loop is missing, do not crawl. Stop with
+`missing_source_execution_policy`.
+
+If the loop has no repo-local source batch cache path, do not crawl. Stop with
+`missing_source_cache_path`.
+
+If a generated code loop appears necessary to perform source crawling,
+selection, or graph writing, do not crawl. Stop with
+`generated_code_loop_forbidden` and expand the Markdown loop surface instead.
+
+Do not broaden the crawl because new interesting entities appear. New entities
+belong in a later loop iteration or a logged candidate frontier.
+
+### 15.1 Source Failure State Machine
+
+Every source lookup must follow this state machine:
+
+```text
+prepare_batch
+query_source_adapter
+receive_response
+validate_response_shape
+update_markdown_candidate_selection
+record_markdown_dedupe_or_resolution
+write_markdown_authorized_records
+validate_batch
+checkpoint_batch
+advance_or_stop
+```
+
+These are Markdown packet states. They do not authorize generated code to
+select candidates, deduplicate records, or write graph JSON.
+
+When trouble occurs:
+
+```text
+timeout -> retry_if_budget_remains -> fallback_if_declared -> partial_success_if_allowed -> stop
+rate_limited -> backoff_if_declared -> fallback_if_declared -> partial_success_if_allowed -> stop
+malformed_response -> retry_if_budget_remains -> fallback_if_declared -> stop
+insufficient_results -> fallback_if_declared -> partial_success_if_allowed -> graph_build_target_unmet
+```
+
+The executor may continue after source trouble only if the loop spec declares
+the relevant policy and repository state has been checkpointed.
+
+Failure and event codes:
+
+```text
+source_batch_timeout
+source_rate_limited
+source_malformed_response
+source_fallback_used
+source_partial_success
+source_exhausted
+missing_source_execution_policy
+```
+
+### 15.2 Markdown Batch Execution Discipline
+
+Any loop that crawls sources or may process many graph records must execute in
+batches.
+
+Batches are explicit Markdown work packets. They bound the agentic loop; they
+do not authorize generated Python, shell scripts, notebooks, or helper code to
+own traversal.
+
+Before a batch starts, read:
+
+```text
+batch_execution_meaning
+batch_plan_path
+batch_markdown_packet_path
+batch_kind
+batch_scope
+batch_item_source
+batch_item_ids_or_selection_rule
+batch_size
+max_runtime_seconds_per_batch
+max_records_written_per_batch
+max_source_queries_per_batch
+max_retries_per_batch
+backoff_seconds
+checkpoint_after_each_batch
+partial_success_policy
+resume_from_batch_cursor
+candidate_frontier_output
+source_batch_cache_path
+markdown_report_path
+```
+
+If any required batch control is missing, stop with
+`missing_batch_execution_policy`.
+
+If `batch_execution_meaning` is not
+`markdown_batch_partition_not_generated_code_loop`, stop with
+`missing_batch_execution_policy`.
+
+Before executing the batch, verify that `batch_markdown_packet_path` exists or
+create it as the next legal Markdown expansion action. If the path is declared
+but the packet is absent and cannot be created without guessing, stop with
+`missing_batch_packet`. The packet must name:
+
+```text
+active_loop_path
+batch_id
+current_loop_item
+batch_scope
+source_queries_or_graph_items_to_check
+candidate_items_to_consider
+maximum_writes_allowed
+markdown_report_rows_to_update
+source_batch_cache_path
+cursor_before
+cursor_after_success
+frontier_output_path
+stop_conditions
+```
+
+Codex must execute the batch by walking that Markdown packet, not by generating
+or running code to traverse the batch. Source lookup may use available
+source-access tools or human-provided source material, but candidate selection,
+dedupe decisions, graph-write authorization, cursor advancement, and frontier
+updates must remain in Markdown/log/cursor state.
+
+After each batch:
+
+- persist the batch result under `runs/<run_id>/source_batches/` before using
+  it for candidate selection;
+- update the relevant nested-list Markdown report before any graph JSON write;
+- write only records explicitly authorized by the Markdown report row for the
+  current batch;
+- record rejected and deduped candidates in the Markdown report;
+- run the declared batch validation or note why only final validation is
+  available;
+- append a batch log entry;
+- update the cursor or batch cursor;
+- write any unprocessed work to the candidate frontier.
+
+Do not discard partial success because a later source query timed out. Do not
+restart a batch from memory when a cursor or frontier exists.
+
+### 15.3 Batch Log Fields
+
+Every source or graph-processing batch log entry must include:
+
+```text
+batch_id
+loop_id
+action_id
+batch_markdown_packet_path
+source_adapter_id
+query_or_operation
+requested_count
+returned_count
+selected_count
+rejected_count
+deduped_count
+written_count
+timeout_status
+retry_count
+fallback_used
+partial_success
+frontier_output
+next_batch_cursor
+validation_result
+```
+
+For loops without external source lookup, `source_adapter_id` may be
+`not_applicable`, but counts, validation, cursor, and frontier fields still
+apply when graph JSON is written.
+
+### 15.4 Entity Resolution During Source Crawls
+
+Before writing a fiber node from a source record, apply the loop's
+entity-resolution rule.
+
+The executor must distinguish:
+
+```text
+source_record
+candidate_entity
+resolved_entity
+```
+
+If the loop spec lacks canonical identity fields, source-native ID fields,
+label normalization, duplicate handling, and conflict policy, stop with
+`missing_entity_resolution_policy`.
+
+If two records may refer to the same entity and the policy does not decide
+whether to merge or keep separate, stop with `entity_resolution_ambiguous` or
+write both as candidates with explicit review notes only if the loop spec
+allows that behavior.
+
+### 15.5 Incremental Validation
+
+For large or source-backed runs, validation must be staged:
+
+```text
+validate_current_batch
+validate_touched_file
+periodic_full_validation
+final_full_validation
+```
+
+The loop spec must say which level is required after the current action.
+
+If full graph validation is too expensive after every small batch, the executor
+may run batch or touched-file validation only when the loop spec allows it, but
+the run cannot be marked complete until final full validation passes.
+
+## 16. Completion Rules
+
+An action is complete only when:
+
+- allowed file changes are made or a defensible no-change result is logged;
+- any decision-bearing source batch has been persisted under the run source
+  batch root;
+- any graph-shaping decision has been recorded in the relevant nested-list
+  Markdown report;
+- any generated code loop needed by the action has been rejected and replaced
+  with explicit Markdown loop traversal;
+- relevant validation is run or explicitly deferred with reason;
+- evidence is recorded;
+- execution log is appended;
+- cursor is advanced or stopped.
+
+A loop is complete only when its iterator is exhausted, target count is reached,
+or a loop-specific stop condition fires.
+
+A protocol run is complete only when the fiber graph review passes or the
+generated protocol defines an earlier completion target.
+
+For a graph-build run with `manifest.graph_build_target`, the earlier
+completion target is valid only when the graph JSON counts satisfy the compiled
+target contract:
+
+```text
+actual_eligible_ordinary_type_node_count == graph_build_target.type_graph_targets.node_type_count
+actual_base_entity_type_count == graph_build_target.type_graph_targets.node_type_count
+actual_query_derived_type_count == 0
+actual_distinct_predicate_family_count == graph_build_target.type_graph_targets.edge_type_count
+actual_base_relation_type_count == graph_build_target.type_graph_targets.edge_type_count
+actual_query_derived_relation_type_count == 0
+actual_fiber_node_count == graph_build_target.fiber_graph_targets.expected_node_instances
+actual_fiber_edge_count == graph_build_target.fiber_graph_targets.expected_edge_instances
+```
+
+Ineligible metadata, source, taxonomy, schema, provenance, evidence, helper, or
+classification records must not count toward graph-build targets. Endpoint
+variants of one predicate family must not count as multiple edge-type targets
+unless the manifest explicitly declares an endpoint-variant target.
+Query-derived cohorts, role intersections, analytical views, query-derived
+relations, projections, path-derived relations, co-membership edges,
+transitive closures, and materialized query results must not count toward
+base graph-build targets.
+
+For graph-build runs, raw counts are not sufficient. The completion log must
+also show:
+
+```text
+type_diversity_gate_result == passed
+base_entity_type_admission_gate_result == passed
+query_derived_type_rejection_gate_result == passed
+type_field_richness_gate_result == passed or precise_limitation_logged
+base_relation_admission_gate_result == passed
+query_derived_relation_rejection_gate_result == passed
+relation_family_diversity_gate_result == passed
+relation_field_richness_gate_result == passed or precise_limitation_logged
+distinct_predicate_family_count >= graph_build_target.type_graph_targets.edge_type_count
+query_derived_type_count == 0
+query_derived_relation_type_count == 0
+```
+
+If raw edge counts pass but `distinct_predicate_family_count` is below the
+requested edge-type count, stop with `semantic_edge_target_unmet`. Report the
+graph as structurally valid but semantically incomplete.
+
+If raw node or edge counts pass only because query-derived types or
+query-derived relations were counted as base records, stop with
+`base_graph_target_semantically_invalid`. Report the graph as structurally
+present but semantically invalid for the requested base graph target.
+
+If the bundle declares an overflow policy other than exact counts, the manifest
+must state that policy explicitly. Otherwise, do not exceed the requested
+counts and do not report success below the requested counts.
+
+The execution log entry that marks completion or stop must include:
+
+```text
+target_eligible_type_nodes
+actual_eligible_ordinary_type_nodes
+actual_base_entity_type_count
+actual_query_derived_type_count
+target_distinct_predicate_families
+actual_distinct_predicate_families
+actual_base_relation_type_count
+actual_query_derived_relation_type_count
+target_fiber_nodes
+actual_fiber_nodes
+target_fiber_edges
+actual_fiber_edges
+type_diversity_gate_result
+base_entity_type_admission_gate_result
+query_derived_type_rejection_gate_result
+type_field_richness_gate_result
+base_relation_admission_gate_result
+query_derived_relation_rejection_gate_result
+relation_family_diversity_gate_result
+relation_field_richness_gate_result
+distinct_predicate_family_count
+validation_result
+unmet_target, if any
+```
+
+## 17. Stop Conditions
+
+Stop immediately if:
+
+- required bundle files are missing;
+- run contract completeness is absent or not `complete`;
+- `manifest.ordered_loop_specs` is missing;
+- required loop-spec headings are missing;
+- a required Markdown batch packet is missing and cannot be created as the next
+  legal expansion action;
+- path reconciliation is required;
+- cursor/log state conflicts with repository reality;
+- graph JSON cannot be parsed;
+- validation is unavailable;
+- validation fails and repair is not obvious within the current action;
+- a type/fiber projection invariant would be violated;
+- a proposed type node is not an ordinary domain entity type;
+- a proposed type node is a query-derived cohort, role intersection, source
+  taxonomy filter, path-derived class, or analytical view;
+- a proposed type edge is not an ordinary domain relation type;
+- a proposed type edge is query-derived, projected, path-derived,
+  co-membership based, a transitive closure, or a materialized query result;
+- the graph-build target cannot be met under the source policy and semantic
+  gates;
+- type diversity report is missing before type-set freeze;
+- base entity type admission gate is missing before type-set freeze;
+- query-derived type rejection gate is missing before type-set freeze;
+- type diversity gate fails and no precise limitation is logged;
+- type field richness gate is missing before type-field review completes;
+- relation diversity report is missing before edge-set freeze;
+- base relation admission gate is missing before edge-set freeze;
+- query-derived relation rejection gate is missing before edge-set freeze;
+- relation family diversity gate fails and no precise limitation is logged;
+- multiple endpoint variants of one predicate family are counted as multiple
+  graph-build edge types without explicit endpoint-variant scope;
+- relation field richness gate is missing before edge-field review completes;
+- raw graph counts are met but semantic richness gates fail;
+- type field discovery begins before the type set is frozen;
+- type edge discovery begins before type-field review is complete or
+  explicitly deferred;
+- type edge field discovery begins before the edge set is frozen;
+- fiber population begins before type-edge-field review and the type graph
+  ready gate;
+- an action tries to write out-of-phase records instead of logging them to the
+  frontier;
+- type-node or type-edge fiber-population eligibility is missing before a
+  fiber graph pass;
+- a fiber graph pass would iterate over an ineligible type node or type edge;
+- a fiber node would duplicate a downstairs type label, source taxonomy label,
+  schema class, provenance/evidence class, or classification bucket;
+- a fiber node would instantiate a query-derived cohort, role intersection,
+  source taxonomy filter, path-derived class, or analytical view;
+- a fiber edge would restate type membership, source classification,
+  provenance, evidence, or schema metadata;
+- a fiber edge would encode projection, co-membership, path composition,
+  transitive closure, or a materialized query result as a base relation;
+- source boundaries are missing;
+- source lookup is required but not allowed;
+- source execution policy is missing;
+- source batch times out and no retry, fallback, partial-success, or stop rule
+  is declared;
+- source rate limiting occurs and no backoff, fallback, partial-success, or
+  stop rule is declared;
+- batch execution policy is missing;
+- source batch cache path is missing before source lookup or graph-shaping
+  selection;
+- source results exist only in an external temporary path, terminal output, or
+  model memory;
+- a graph-shaping Markdown decision report is missing before graph JSON write;
+- generated code would be needed to perform graph-building traversal,
+  selection, or graph JSON writes;
+- an existing repository validation/materialization tool is needed but not
+  declared by the loop spec or validation gate;
+- entity-resolution policy is missing before instance discovery;
+- entity resolution is ambiguous and no merge/keep-separate/review rule is
+  declared;
+- field completion policy is missing before instance field completion;
+- edge-instance discovery budgets are missing;
+- edge-field completion policy is missing before edge field completion;
+- an action requires a Project Owner decision;
+- instructions conflict;
+- the next legal action cannot be identified;
+- continuing would require writing outside the allowed target;
+- continuing would require inventing unsupported graph facts.
+
+When stopping, update the execution log and cursor if it is safe to do so.
+
+## 18. Failure Report Schema
+
+Every stop must produce a structured failure report before the final response
+or log entry is considered complete.
+
+Required failure report fields:
+
+```text
+mode:
+protocol_root:
+run_id:
+protocol_id:
+loop_id:
+action_id:
+active_iteration:
+cursor_status_before:
+expected_state:
+observed_state:
+failed_rule:
+failure_kind:
+files_read:
+files_written:
+sources_checked:
+batch_id:
+source_adapter_id:
+fallback_used:
+partial_success:
+frontier_output:
+validation_attempted:
+validation_result:
+safe_to_resume:
+resume_cursor:
+next_required_input:
+recommended_next_action:
+```
+
+`failure_kind` must be one of:
+
+```text
+wrong_mode
+missing_bundle_file
+incomplete_run_contract
+missing_loop_spec_heading
+missing_batch_packet
+path_reconciliation_required
+cursor_log_conflict
+invalid_graph_json
+validation_unavailable
+validation_failed
+projection_invariant_violation
+graph_build_target_unmet
+inadmissible_type_node
+inadmissible_type_edge
+missing_fiber_population_eligibility
+missing_source_boundary
+source_lookup_not_allowed
+missing_source_execution_policy
+missing_source_cache_path
+external_tmp_decision_state
+missing_markdown_decision_report
+generated_code_loop_forbidden
+tool_not_declared
+source_batch_timeout
+source_rate_limited
+source_malformed_response
+source_fallback_used
+source_partial_success
+source_exhausted
+missing_batch_execution_policy
+missing_entity_resolution_policy
+entity_resolution_ambiguous
+missing_field_completion_policy
+type_diversity_report_missing
+type_diversity_gate_failed
+type_field_richness_gate_missing
+type_field_richness_limited
+type_set_not_frozen
+type_fields_not_reviewed
+edge_set_not_frozen
+edge_fields_not_reviewed
+relation_diversity_report_missing
+relation_family_diversity_unmet
+relation_field_richness_gate_missing
+relation_field_richness_limited
+semantic_edge_target_unmet
+semantic_graph_target_incomplete
+out_of_phase_write
+missing_edge_instance_budget
+missing_edge_field_completion_policy
+project_owner_decision_required
+instruction_conflict
+next_action_unknown
+write_target_forbidden
+unsupported_fact_risk
+```
+
+The failure report must name the smallest failing control surface: manifest,
+domain protocol, loop spec, cursor, log, graph JSON, source policy, validation
+gate, or prompt.
+
+## 19. Execution Log Entry Contract
+
+Every action must append a log entry.
+
+The initial execution-log scaffold is not an action entry. Do not create a fake
+bootstrap entry unless a real initialization action was executed and the cursor
+points to that entry with `last_log_entry_id`.
+
+Candidate log entry shape:
+
+```text
+## Entry <entry_id>
+
+timestamp:
+cursor_before:
+loop_id:
+action_id:
+active_iteration:
+files_read:
+files_written:
+sources_checked:
+batch_id:
+source_batch_cache:
+markdown_report:
+tool_output_log:
+source_adapter_id:
+requested_count:
+returned_count:
+selected_count:
+rejected_count:
+deduped_count:
+written_count:
+timeout_status:
+retry_count:
+fallback_used:
+partial_success:
+frontier_output:
+validation:
+result:
+cursor_after:
+stop_condition:
+notes:
+failure_report:
+```
+
+The log entry should be enough for a later Codex run to reconstruct why the
+cursor moved.
+
+## 20. Cursor Update Contract
+
+After each action, update:
+
+```text
+status
+active_loop_id
+active_action_id
+active_iteration
+current_project
+current_type_id
+current_type_pair
+current_edge_type_id
+current_batch_id
+completed_loop_ids
+completed_action_ids
+blocked_on
+last_log_entry_id
+updated_at
+```
+
+Do not advance the cursor before the log entry exists.
+
+If a file edit succeeds but validation fails, the cursor should show that the
+run is blocked or needs repair at the current action, not that the action is
+complete.
+
+## 21. Candidate Invocation Prompts
+
+### 21.1 Expert Prompt
+
+```text
+EXECUTE-BUNDLE
+
+Using assets/protocol_assets/system/graph_population/v001/graph_population_control_protocol.md
+as the control protocol, execute the generated protocol bundle at:
+
+interaction_level: expert
+diagnostic_verbosity: terse
+protocol_root: <protocol root>
+run_id: <run id>
+
+Read the manifest, domain protocol, loop specs, cursor, execution log, and
+candidate graph JSON. Identify the next legal action, execute only that bounded
+action unless I explicitly say to continue farther, validate the affected graph
+state, append the execution log, and update the cursor. Stop if any stop
+condition fires.
+```
+
+To run longer:
+
+```text
+Continue under the same control protocol until the current loop completes or a
+stop condition fires.
+```
+
+### 21.2 Guided Prompt
+
+```text
+I have a generated graph-population protocol bundle and want to run it. Use
+guided mode with
+assets/protocol_assets/system/graph_population/v001/graph_population_control_protocol.md.
+
+Help me confirm the protocol root, run ID, candidate graph root, and next safe
+bounded action before changing files or crawling sources.
+```
+
+In `guided` or `onboarding` mode, Codex must explain the current run state in
+plain language before exposing manifest, cursor, log, or loop-spec details.
+
+## 22. Smoke-Test Shape
+
+A minimal smoke test for this control protocol should use a tiny generated
+bundle with no live web lookup.
+
+The fixture should prove:
+
+- missing bundle files are detected;
+- incomplete run contracts are detected;
+- missing loop-spec headings are detected;
+- path reconciliation mismatches are detected;
+- missing validation definitions stop execution;
+- missing source boundaries stop source crawling;
+- generated code loops are rejected before graph-building traversal, selection,
+  or graph JSON writes;
+- missing or invalid `batch_execution_meaning` stops batched execution;
+- missing `batch_markdown_packet_path` causes a Markdown expansion action or a
+  stop before batch traversal;
+- source-cache selected/rejected counts without a Markdown report do not
+  authorize graph writes;
+- graph-tool outputs are logged under `tool_outputs/` and do not choose graph
+  contents;
+- missing type-set freeze stops type-field discovery;
+- query-derived/cohort type candidates are rejected before type-set freeze;
+- missing type-field review stops type-edge discovery;
+- query-derived/projection relation candidates are rejected before edge-set
+  freeze;
+- missing edge-set freeze stops edge-field discovery;
+- missing edge-field review stops fiber population;
+- out-of-phase writes are rejected or routed to a frontier;
+- missing edge-instance discovery budgets stop edge instance discovery;
+- missing edge-field completion policies stop edge field completion;
+- cursor initializes from the manifest;
+- one type-set discovery action can be executed;
+- one type-field action can be executed for a frozen type;
+- one type-edge action can be executed after type-field review;
+- one type-edge-field action can be executed for a frozen edge type;
+- one fiber node action can be executed;
+- one fiber edge-instance action can be executed;
+- one fiber edge-field action can be executed;
+- validation blocks an invalid projection;
+- cursor and log allow resume after interruption.
+
+Live Codex or live web/source tests should be opt-in integration smokes, not
+ordinary unit tests.

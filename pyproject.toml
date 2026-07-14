@@ -1,0 +1,52 @@
+[project]
+name = "ortelius"
+version = "0.1.0"
+description = "Codex-facing tools for typed/fibered graph JSON workflows."
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Tyler Foster" }]
+requires-python = ">=3.12"
+dependencies = [
+    "networkx>=3.5",
+    "numpy>=2.5.1",
+    "torch>=2.13.0",
+    "torch-geometric>=2.8.0",
+]
+
+[project.scripts]
+ortelius = "ortelius.cli:main"
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ortelius"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.15.21",
+]
+
+[tool.pytest.ini_options]
+addopts = [
+    "--strict-config",
+    "--strict-markers",
+    "-ra",
+]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "B",
+    "E",
+    "F",
+    "I",
+    "UP",
+]
