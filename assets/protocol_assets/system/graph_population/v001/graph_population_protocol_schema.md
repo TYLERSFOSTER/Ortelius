@@ -1030,6 +1030,10 @@ actual_eligible_ordinary_type_node_count
 actual_base_entity_type_count
 actual_query_derived_type_count
 actual_distinct_predicate_family_count
+accepted_distinct_primitive_relation_families
+endpoint_variant_edges_excluded_from_target
+inverse_edges_excluded_from_target
+alternate_duplicate_edges_excluded_from_target
 actual_base_relation_type_count
 actual_query_derived_relation_type_count
 actual_fiber_node_count
@@ -1068,6 +1072,7 @@ scaffold_records_counted_toward_target
 ```text
 accepted_base_entity_type_records == graph_build_target.type_graph_targets.node_type_count
 accepted_base_relation_type_records == graph_build_target.type_graph_targets.edge_type_count
+accepted_distinct_primitive_relation_families == graph_build_target.type_graph_targets.edge_type_count
 accepted_source_backed_fiber_nodes == graph_build_target.fiber_graph_targets.expected_node_instances
 accepted_field_complete_fiber_nodes == graph_build_target.fiber_graph_targets.expected_node_instances
 accepted_pair_evidenced_fiber_edges == graph_build_target.fiber_graph_targets.expected_edge_instances
@@ -1155,7 +1160,8 @@ runs/<run_id>/reports/semantic_acceptance_report.md
 
 The semantic acceptance report is the completion authority for accepted target
 counts. It must include the counters above, sources or report paths supporting
-the counters, the relevant validation result, and the final status:
+the counters, the primitive relation-family normalization audit tables, field
+richness audit tables, the relevant validation result, and the final status:
 
 ```text
 semantic_acceptance_status:
@@ -1259,8 +1265,12 @@ unstated project intent, or model memory about what counts as a real graph.
 For every ordinary `MAKE-GRAPH` bundle, this schema must generate an explicit
 Markdown semantic acceptance loop. This loop is the semantic acceptance
 validator for the run. It is not a Python traversal loop, not a helper script,
-and not an in-memory checklist. It must be represented in the generated
-workflow program as:
+and not an in-memory checklist. Codex must not create generated scripts that
+select types, select relation inventory, run source-recovery loops, retry source
+strategies, populate graph records, or write graph JSON. If Codex thinks such a
+script is needed, the bundle is missing an explicit Markdown batch packet or
+child loop, and Codex must create that Markdown loop surface instead. The gate
+must be represented in the generated workflow program as:
 
 ```text
 loop_specs/17_semantic_acceptance_gate.md
@@ -1290,6 +1300,25 @@ FinalSemanticDecision:
   write the exact semantic_acceptance_status
 ```
 
+The semantic acceptance report must contain these explicit audit tables, not
+only summary counters:
+
+```text
+Type Node Semantic Review Table
+Type Edge Semantic Review Table
+Primitive Relation Family Summary
+Endpoint Variant / Inverse Group Table
+Fiber Node Batch Review Table
+Fiber Edge Batch Review Table
+Field Richness Review Table
+Counter Reconciliation Table
+Final Decision
+```
+
+The report is invalid if any required table is absent, empty, or replaced by a
+sentence claiming that counts passed. Summary counters can summarize the tables;
+they cannot replace them.
+
 Only the Markdown gate may promote raw written records to accepted semantic
 records. Graph JSON validation, materialization, source-query row counts, and
 record counts are evidence inputs to the gate; they are not substitutes for it.
@@ -1314,6 +1343,69 @@ Only `relation_kind: domain_relation` may count toward
 `accepted_base_relation_type_records` or any requested edge-type target.
 Everything else must be candidate, rejected, or metadata, even when it is
 source-backed.
+
+The gate must then normalize every accepted `domain_relation` edge into a
+primitive relation family before it can count toward requested edge-type
+targets. The normalized family is the semantic relation meaning, not the edge
+ID, endpoint type labels, source-property label, source-query shape, or graph
+direction chosen for storage.
+
+Every type edge review row must include:
+
+```text
+edge_type_id:
+edge_label:
+source_type_id:
+target_type_id:
+relation_kind:
+primitive_relation_family:
+source_property_family:
+directionality_role: canonical | inverse | endpoint_variant | alternate_duplicate
+inverse_pair_id:
+is_inverse_of_edge_type_id:
+is_endpoint_variant_of_family:
+is_alternate_duplicate:
+counts_toward_requested_edge_type_target:
+acceptance_or_rejection_reason:
+```
+
+By default, endpoint specialization does not create a new requested edge type.
+These examples are endpoint variants of one primitive relation family unless
+the manifest explicitly says endpoint variants are in scope:
+
+```text
+person born in place
+artist born in place
+painter born in place
+sculptor born in place
+place birthplace of painter
+place birthplace of sculptor
+```
+
+By default, inverse direction does not create a new primitive relation family.
+These examples count as one primitive family unless the manifest explicitly
+says inverse variants are in scope:
+
+```text
+painter created painting
+painting created by painter
+```
+
+Any relation introduced as an alternate, backup, replacement, fallback,
+`_alt`, `_2`, or count-preserving substitute must be presumed not to count. It
+may count only if the semantic acceptance gate proves a distinct primitive
+relation family and records why it is not an endpoint variant, inverse, or
+alternate duplicate.
+
+The gate must compute target progress with:
+
+```text
+accepted_distinct_primitive_relation_families
+```
+
+It must not use raw edge IDs, endpoint variants, inverse variants, source
+properties, source-query paths, or alternate labels as substitutes for distinct
+primitive relation families.
 
 A source-backed claim is not automatically a domain relation. A source record
 showing that an entity has a source-system property, source taxonomy class,
@@ -1346,6 +1438,8 @@ semantic_acceptance_incomplete
 source_depth_limited
 field_richness_limited
 edge_evidence_limited
+semantic_edge_family_diversity_unmet
+relation_recovery_collapsed_to_low_diversity
 ```
 
 Only the exact value `passed` is a completion state. Statuses such as
@@ -1361,6 +1455,28 @@ self-edge padding, counting generic fields, or treating source-adapter rows as
 semantic completion, the schema must require the generated run to stop as
 semantically incomplete. Count preservation is subordinate to semantic
 admission.
+
+The field richness review must also run in the final semantic acceptance gate.
+A type or relation does not pass field richness merely because it has source
+adapter fields such as `wikidata_qid`, `source_url`, `source_batch_id`,
+`wikidata_property`, `pair_evidence`, `type_membership_evidence`, display
+labels, coordinates, or source category values. The report must count these
+separately:
+
+```text
+identity_field_count
+source_adapter_field_count
+domain_descriptive_field_count
+relation_affordance_field_count
+review_or_provenance_field_count
+```
+
+For ordinary `MAKE-GRAPH`, every accepted ordinary type must have type-specific
+domain-descriptive fields or a non-passing field limitation after recovery. A
+single identical generic field set reused across every type is not field
+richness. If this happens, the final gate must set
+`semantic_acceptance_status: field_richness_limited` or continue into the
+field-enrichment Markdown child loop when recovery remains.
 
 ## 1. Purpose
 
@@ -4003,17 +4119,25 @@ semantic_acceptance_gate_role: final Markdown validator over generated graph art
 raw_written_record_rule: written records are candidates until this gate accepts them
 accepted_record_rule: only records passing the gate move accepted counters
 relation_kind_classifier: required for every type edge
+primitive_relation_family_normalization_gate: required before edge targets can count
+endpoint_variant_grouping_rule: endpoint variants count once unless explicitly in scope
+inverse_edge_counting_rule: inverse edges count once unless explicitly in scope
+alternate_duplicate_rejection_rule: alternate/fallback edges do not count without distinct primitive meaning
+type_edge_semantic_review_table_required: one row per accepted/rejected type edge
+primitive_relation_family_summary_required: one row per normalized primitive family
+field_richness_audit_table_required: generic/source-adapter fields do not satisfy richness
 self_edge_review_rule: required before any self-edge can count
 source_claim_rejection_rule: source/provenance/evidence claims are metadata, not base edges
-field_richness_review_rule: generic/source-adapter fields do not satisfy richness
 pair_evidence_review_rule: edge instances need exact source-relation-target evidence
-counter_reconciliation_rule: accepted counters must match graph_build_target
+counter_reconciliation_rule: accepted counters must match graph_build_target using accepted primitive families
 status_rule: only exact semantic_acceptance_status: passed completes the run
+generated_script_rejection_rule: generated population scripts are forbidden workflow drivers
 recovery_rule: if recoverable gaps remain, create/update Markdown child loops and continue
 ```
 
-If this final semantic acceptance loop is absent, thin, or only says that raw
-counts and structural validation passed, the bundle is incomplete.
+If this final semantic acceptance loop is absent, thin, lacks audit tables,
+lacks primitive relation-family normalization, or only says that raw counts and
+structural validation passed, the bundle is incomplete.
 
 The generated protocol must not rely on prose such as "continue as needed"
 unless it also defines the loop variable, completion condition, recovery
