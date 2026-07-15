@@ -91,7 +91,10 @@ flowchart TD
   E9 --> E10["Update cursor"]
 
   E10 -->|"continue allowed and target not met"| E2
-  E10 -->|"graph_build_targets_met and semantic gates passed"| Z["Complete run"]
+  E10 -->|"raw targets appear met"| E11["Run Markdown semantic acceptance gate loop"]
+  E11 -->|"semantic_acceptance_status: passed"| Z["Complete run"]
+  E11 -->|"recoverable semantic gap remains"| E2
+  E11 -->|"terminal limitation, invalid status, or recovery exhausted"| S
   E10 -->|"terminal stop or recovery exhausted"| S
 ```
 
@@ -1107,11 +1110,18 @@ must be deduplicated or left candidate, and they must not be used to satisfy
 accepted target counts across multiple type buckets.
 
 Accepted fiber edges must have pair-specific evidence for the exact source
-node, primitive relation, and target node. A source-backed source node plus a
-source-backed target node plus a compatible type edge is not evidence of a
-concrete edge. Deterministic endpoint pairing, shared bucket membership,
-co-presence in the graph, endpoint compatibility, or source-category overlap
-must not count as pair-specific evidence.
+node, primitive domain relation, and target node. A source-backed source node
+plus a source-backed target node plus a compatible type edge is not evidence of
+a concrete edge. Deterministic endpoint pairing, shared bucket membership,
+co-presence in the graph, endpoint compatibility, source-category overlap, or
+source-adapter claim presence must not count as pair-specific evidence.
+
+A source claim about one entity is not an edge between domain entities. For
+example, if a source says entity X has source-system property P with claim
+target Z, that fact may support type membership, a field value, source evidence,
+or provenance. It must not be converted into an accepted base edge
+`X -> X has_P_claim` or `X -> Z has_source_claim` unless the human explicitly
+requested a graph whose domain is source claims themselves.
 
 For graph-build targets that request `instances_per_edge_type`, type-edge
 discovery must not freeze an edge type merely because the relation family is
@@ -1151,6 +1161,12 @@ the counters, the relevant validation result, and the final status:
 semantic_acceptance_status:
   passed | semantic_acceptance_incomplete | source_depth_limited | field_richness_limited | edge_evidence_limited
 ```
+
+This status set is closed. The exact value `passed` is the only passing value.
+A generated bundle must not invent qualified pass states such as
+`passed_with_note`, `passed_with_relation_policy_note`,
+`passed_with_claim_evidence_scope`, or `passed_structural_only`. A caveated
+pass means the semantic acceptance gate has not passed.
 
 Structural validation alone never satisfies `MAKE-GRAPH`.
 
@@ -1233,6 +1249,118 @@ edge_evidence_recovery_exhausted
 The semantic acceptance report must say whether unmet targets are unmet because
 recovery is still available, recovery was exhausted, source policy forbids more
 work, or a human scope decision is required.
+
+### 0.0.2.2 Zero-Context Markdown Semantic Acceptance Gate Directive
+
+A fresh Codex instance must be able to understand and execute semantic
+acceptance from repo-local Markdown alone. Do not assume any prior conversation,
+unstated project intent, or model memory about what counts as a real graph.
+
+For every ordinary `MAKE-GRAPH` bundle, this schema must generate an explicit
+Markdown semantic acceptance loop. This loop is the semantic acceptance
+validator for the run. It is not a Python traversal loop, not a helper script,
+and not an in-memory checklist. It must be represented in the generated
+workflow program as:
+
+```text
+loop_specs/17_semantic_acceptance_gate.md
+runs/<run_id>/reports/semantic_acceptance_report.md
+```
+
+The semantic acceptance gate is a required final loop over repo-local graph
+artifacts and reports. It must contain nested, bounded checklist loops for:
+
+```text
+TypeNodeSemanticReview:
+  for each accepted type node
+
+TypeEdgeSemanticReview:
+  for each accepted type edge
+
+FiberNodeBatchSemanticReview:
+  for each accepted fiber-node batch or type bucket
+
+FiberEdgeBatchSemanticReview:
+  for each accepted fiber-edge batch or edge type
+
+CounterReconciliation:
+  compare accepted semantic counters against graph_build_target
+
+FinalSemanticDecision:
+  write the exact semantic_acceptance_status
+```
+
+Only the Markdown gate may promote raw written records to accepted semantic
+records. Graph JSON validation, materialization, source-query row counts, and
+record counts are evidence inputs to the gate; they are not substitutes for it.
+
+The gate must classify every type edge before it can count:
+
+```text
+relation_kind:
+  domain_relation
+  source_claim
+  provenance_relation
+  evidence_relation
+  adapter_metadata_relation
+  type_membership_relation
+  query_derived_relation
+  materialized_view_relation
+  helper_or_scaffold_relation
+  unknown
+```
+
+Only `relation_kind: domain_relation` may count toward
+`accepted_base_relation_type_records` or any requested edge-type target.
+Everything else must be candidate, rejected, or metadata, even when it is
+source-backed.
+
+A source-backed claim is not automatically a domain relation. A source record
+showing that an entity has a source-system property, source taxonomy class,
+source category, source ID, source URL, or claim target is evidence metadata.
+It must be stored in sources, provenance, evidence notes, source batches, or
+reports. It must not be represented as an accepted base graph edge unless the
+human explicitly requested a graph whose domain is source claims themselves.
+
+Self-edges must not count toward requested edge targets unless the generated
+semantic acceptance gate records all of these fields as true:
+
+```text
+self_edge_allowed: true
+reflexive_domain_relation: true
+human_or_manifest_explicitly_requested_reflexive_edges: true
+relation_kind: domain_relation
+pair_specific_evidence_for_reflexive_relation: present
+not_source_claim_or_provenance_or_evidence: true
+```
+
+A self-edge that exists only to record a source claim, source property,
+classification, evidence event, provenance fact, adapter row, or membership in
+a type bucket must be rejected for graph-build target counting.
+
+The gate must reject every completion status except these exact values:
+
+```text
+passed
+semantic_acceptance_incomplete
+source_depth_limited
+field_richness_limited
+edge_evidence_limited
+```
+
+Only the exact value `passed` is a completion state. Statuses such as
+`passed_with_note`, `passed_with_relation_policy_note`,
+`passed_with_claim_evidence_scope`, `passed_structural_only`, or any other
+qualified pass are invalid. If a generated run needs a caveat, it has not
+passed; it must use one of the non-passing statuses above and explain the
+blocker and remaining or exhausted recovery path.
+
+If exact requested counts can be reached only by weakening relation semantics,
+writing source-claim edges, writing provenance/evidence/helper edges, writing
+self-edge padding, counting generic fields, or treating source-adapter rows as
+semantic completion, the schema must require the generated run to stop as
+semantically incomplete. Count preservation is subordinate to semantic
+admission.
 
 ## 1. Purpose
 
@@ -1536,6 +1664,7 @@ shape:
     14_edge_instance_discovery.md
     15_edge_instance_field_completion.md
     16_fiber_graph_review.md
+    17_semantic_acceptance_gate.md
   candidate_graphs/
     <type_graph_id>/
       nodes.json
@@ -1697,7 +1826,8 @@ Minimum candidate shape:
     "loop_specs/13_instance_field_completion.md",
     "loop_specs/14_edge_instance_discovery.md",
     "loop_specs/15_edge_instance_field_completion.md",
-    "loop_specs/16_fiber_graph_review.md"
+    "loop_specs/16_fiber_graph_review.md",
+    "loop_specs/17_semantic_acceptance_gate.md"
   ],
   "runs": {
     "default_run_id": "run_001",
@@ -1726,6 +1856,7 @@ Minimum candidate shape:
     "design_reconnaissance_is_not_population_crawl": true,
     "markdown_decision_surface_required": true,
     "semantic_iteration_must_be_markdown": true,
+    "semantic_acceptance_gate_must_be_markdown": true,
     "generated_helper_scripts_allowed": false,
     "python_tools_allowed_for_validation_and_materialization_only": true,
     "graph_json_written_by_codex_from_markdown_report": true,
@@ -3861,6 +3992,28 @@ candidate, what may be promoted to accepted, which counter is allowed to move,
 and which shallow states are forbidden as pass states. For ordinary
 `MAKE-GRAPH`, `seed_contract_status_rule` must reject source-adapter-only or
 generic seed contracts as semantic completion.
+
+The final generated loop spec, normally
+`loop_specs/17_semantic_acceptance_gate.md`, must be a standalone Markdown
+acceptance program. It must restate enough vocabulary for a zero-context Codex
+to run it without earlier conversation. At minimum, it must define:
+
+```text
+semantic_acceptance_gate_role: final Markdown validator over generated graph artifacts
+raw_written_record_rule: written records are candidates until this gate accepts them
+accepted_record_rule: only records passing the gate move accepted counters
+relation_kind_classifier: required for every type edge
+self_edge_review_rule: required before any self-edge can count
+source_claim_rejection_rule: source/provenance/evidence claims are metadata, not base edges
+field_richness_review_rule: generic/source-adapter fields do not satisfy richness
+pair_evidence_review_rule: edge instances need exact source-relation-target evidence
+counter_reconciliation_rule: accepted counters must match graph_build_target
+status_rule: only exact semantic_acceptance_status: passed completes the run
+recovery_rule: if recoverable gaps remain, create/update Markdown child loops and continue
+```
+
+If this final semantic acceptance loop is absent, thin, or only says that raw
+counts and structural validation passed, the bundle is incomplete.
 
 The generated protocol must not rely on prose such as "continue as needed"
 unless it also defines the loop variable, completion condition, recovery
