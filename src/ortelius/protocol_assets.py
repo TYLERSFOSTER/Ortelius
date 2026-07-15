@@ -23,6 +23,9 @@ REQUIRED_LOOP_SPEC_HEADINGS = (
     "Evidence Required",
     "Validation Required",
     "Completion Rule",
+    "Semantic Acceptance Gate",
+    "Recovery Policy",
+    "Batch Execution",
     "Stop Conditions",
     "Handoff",
 )
@@ -264,6 +267,12 @@ def _validate_loop_spec(path: Path, issues: list[ProtocolAssetIssue]) -> None:
             code = "missing_source_boundary"
         elif heading == "Validation Required":
             code = "missing_validation_rule"
+        elif heading == "Semantic Acceptance Gate":
+            code = "missing_semantic_acceptance_gate"
+        elif heading == "Recovery Policy":
+            code = "missing_recovery_policy"
+        elif heading == "Batch Execution":
+            code = "missing_batch_execution_rule"
         _add(issues, "error", code, f"Loop spec is missing heading {heading!r}.", path)
 
     validation_section = sections.get("Validation Required", "")
@@ -276,6 +285,65 @@ def _validate_loop_spec(path: Path, issues: list[ProtocolAssetIssue]) -> None:
             "error",
             "missing_validation_rule",
             "Validation Required section must define command, checklist, or unavailable rule.",
+            path,
+        )
+
+    semantic_section = sections.get("Semantic Acceptance Gate", "")
+    if semantic_section and not _section_has_nonempty_value(
+        semantic_section,
+        (
+            "candidate_counting_rule",
+            "accepted_counting_rule",
+            "semantic_gate",
+            "target_progress_rule",
+        ),
+    ):
+        _add(
+            issues,
+            "error",
+            "missing_semantic_acceptance_gate",
+            "Semantic Acceptance Gate section must define candidate/accepted "
+            "counting, semantic gate, or target progress rule.",
+            path,
+        )
+
+    recovery_section = sections.get("Recovery Policy", "")
+    if recovery_section and not _section_has_nonempty_value(
+        recovery_section,
+        (
+            "recoverable_failure_classes",
+            "recovery_ladder",
+            "recovery_attempt_budget",
+            "resume_condition",
+            "exhaustion_condition",
+        ),
+    ):
+        _add(
+            issues,
+            "error",
+            "missing_recovery_policy",
+            "Recovery Policy section must define failure classes, ladder, "
+            "budget, resume condition, or exhaustion condition.",
+            path,
+        )
+
+    batch_section = sections.get("Batch Execution", "")
+    if batch_section and not _section_has_nonempty_value(
+        batch_section,
+        (
+            "batch_execution_meaning",
+            "batch_plan_path",
+            "batch_packet_path",
+            "batch_size",
+            "checkpoint_rule",
+        ),
+    ):
+        _add(
+            issues,
+            "error",
+            "missing_batch_execution_rule",
+            "Batch Execution section must define meaning, plan path, packet "
+            "path, size, or checkpoint rule.",
             path,
         )
 

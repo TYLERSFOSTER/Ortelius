@@ -1001,6 +1001,24 @@ Raw counts can be complete only when the relevant semantic richness gates have
 also passed. A graph that hits raw counts but fails these gates must be reported
 as structurally valid but semantically incomplete.
 
+Intermediate semantic gates must not use ambiguous pass states. In ordinary
+`MAKE-GRAPH` mode, these values are not passing values:
+
+```text
+passed_seed_contract
+passed_structural_only
+passed_source_adapter_only
+passed_count_probe_only
+passed_query_result_count_only
+passed_with_generic_fields
+```
+
+They must be interpreted as candidate/frontier states, not semantic
+completion. A generated bundle that writes one of those values must continue
+into the relevant semantic child loop or stop with a precise limitation. It
+must not advance as if the type, field, relation, instance, or edge target is
+semantically satisfied.
+
 For `MAKE-GRAPH` completion, generated bundles must expose semantic target
 metrics, not only raw JSON record counts:
 
@@ -1070,12 +1088,54 @@ type-specific `type_fields` discovered earlier in the generated bundle. The
 schema must not allow a fiber node to count merely because it has a source ID,
 label, URL, coordinate, source category, or other source-adapter field.
 
+For a fiber node to count, the source evidence must support the concrete
+record's membership in the declared type, not merely show that the source
+query returned the row. A query result count is a source-navigation fact, not
+record-level evidence. If the same external entity appears under multiple
+type IDs, the bundle must apply an explicit multi-typing policy:
+
+```text
+canonical_entity_id:
+allowed_multiple_fiber_nodes_for_one_entity:
+membership_evidence_per_type:
+counting_policy_for_duplicate_source_entities:
+dedupe_or_role_split_reason:
+```
+
+Absent that policy and per-type membership evidence, duplicate source entities
+must be deduplicated or left candidate, and they must not be used to satisfy
+accepted target counts across multiple type buckets.
+
 Accepted fiber edges must have pair-specific evidence for the exact source
 node, primitive relation, and target node. A source-backed source node plus a
 source-backed target node plus a compatible type edge is not evidence of a
 concrete edge. Deterministic endpoint pairing, shared bucket membership,
 co-presence in the graph, endpoint compatibility, or source-category overlap
 must not count as pair-specific evidence.
+
+For graph-build targets that request `instances_per_edge_type`, type-edge
+discovery must not freeze an edge type merely because the relation family is
+valid or distinct. The generated bundle must prove or explicitly defer
+edge-population feasibility before the edge set freezes:
+
+```text
+edge_type_id:
+predicate_family:
+source_type_id:
+target_type_id:
+target_edges_for_this_type:
+pair_evidence_feasibility_status:
+pair_evidence_probe_count:
+actual_or_planned_source_node_selection_strategy:
+actual_or_planned_target_node_selection_strategy:
+recovery_or_revision_action_if_below_target:
+```
+
+A relation family that is semantically valid but cannot plausibly produce the
+requested number of pair-evidenced concrete edges under the current endpoint
+contract must be recorded as a candidate/deferred relation, not an accepted
+target-counting edge type, unless the manifest explicitly says the run may
+accept semantically valid but under-populated edge types.
 
 Every `MAKE-GRAPH` generated bundle must include:
 
@@ -2697,6 +2757,24 @@ field-recovery ladder is exhausted may the bundle log a precise source-depth
 limitation and stop the graph-build run as semantically incomplete unless the
 human explicitly requested scaffold or smoke mode.
 
+The three domain-descriptive fields must be specific to the current type. A
+generic reusable set such as:
+
+```text
+name
+wikidata_id
+source_url
+description
+domain_note
+```
+
+is a source-adapter seed contract, not type-specific field discovery. It may
+be written as an ingestion scaffold, but it must not produce
+`type_field_richness_gate_result: passed` and must not allow the run to treat
+upstairs instances of that type as field-complete. If every type receives the
+same domain-descriptive field set, the generated protocol must stop with
+`generic_type_field_schema_reused` or enter the type-field recovery loop.
+
 The loop spec must expose:
 
 ```text
@@ -2760,6 +2838,12 @@ acceptance contract for upstairs records. An instance of that type must not
 count toward `MAKE-GRAPH` target counts unless required identity and
 domain-descriptive fields are filled, explicitly blocked, or explicitly
 deferred according to the declared `missing_value_policy`.
+
+Deferring all meaningful fields is not a successful field-completion strategy.
+If the generated protocol cannot discover type-specific fields before
+instance population, it must log `type_field_richness_limited` and keep the
+graph-build run semantically incomplete rather than populating thousands of
+source-adapter-only records.
 
 The loop spec must also define source boundaries:
 
@@ -3077,6 +3161,11 @@ The gate passes only when:
   target;
 - no query-derived, projected, path-derived, co-membership, transitive-closure,
   or materialized-view relation is counted toward the edge target;
+- for any `MAKE-GRAPH` run with a requested `instances_per_edge_type`, every
+  accepted type edge has a pair-evidence feasibility report showing that the
+  selected source type, predicate family, and target type can plausibly produce
+  the requested number of concrete pair-evidenced fiber edges, or else the edge
+  is deferred and does not count toward the accepted edge-type target;
 - every type edge has directed source and target type IDs;
 - rejected and deferred relation candidates are logged outside the frozen edge
   set;
@@ -3085,6 +3174,14 @@ The gate passes only when:
 Once this gate passes, later stages must not silently add new type edges. New
 relation ideas discovered during edge-field or population work must go to a
 frontier or trigger an explicit repair/revision stage.
+
+The feasibility report must be produced before instance target selection
+whenever the fiber-edge target is part of the request. This is what prevents
+the run from first selecting isolated node batches and only later discovering
+that the selected edge types cannot be populated. If feasibility fails for too
+many candidate relations, the correct next action is relation recovery or
+target-scope revision, not accepting weak edge types and hoping the fiber pass
+will fix them.
 
 ### 8.7 Type Edge Field Discovery For Each Frozen Edge Type
 
@@ -3301,12 +3398,34 @@ The loop spec must record:
 - type node ID;
 - `fiber_population_eligible`;
 - target count;
+- relation participation requirements inherited from accepted eligible type
+  edges;
+- source queries or source classes expected to expose relation neighborhoods;
 - priority;
 - source strategy;
 - stop condition.
 
 The output may be a generated target list inside the domain protocol or a
 separate generated loop spec.
+
+For any `MAKE-GRAPH` run with a nonzero edge-instance target, instance target
+selection must be edge-aware. The generated protocol must not select each type
+node's instances independently when those selected nodes are later expected to
+support concrete edge targets. It must decide, for each eligible type node:
+
+```text
+which accepted type edges require this type as source;
+which accepted type edges require this type as target;
+which source queries expose those relations;
+whether selected nodes must be drawn from relation-bearing source records;
+how many isolated-but-valid nodes may be accepted, if any;
+what happens when relation-bearing nodes are insufficient.
+```
+
+A source-backed entity that has no usable relation neighborhood may be a valid
+candidate node, but it must not be counted toward a target whose fulfillment
+depends on that node participating in the requested edge layer unless the
+loop spec explicitly allows isolated nodes.
 
 ### 9.2 Instance Discovery
 
@@ -3335,6 +3454,8 @@ The loop spec must define:
 - current type node;
 - current type node `fiber_population_eligible` value;
 - target count for that type;
+- relevant source-side type membership evidence;
+- relation participation evidence or frontier status;
 - allowed sources;
 - allowed source locations;
 - disallowed source types or locations;
@@ -3354,6 +3475,13 @@ type-graph node.
 
 That `type_id` is the projection. The generated protocol must not also create
 an ordinary fiber edge to restate the node's type membership.
+
+If the same source entity can instantiate multiple accepted type nodes, the
+loop spec must apply the generated multi-typing policy before writing or
+counting records. Without explicit membership evidence for the current type
+and an explicit decision to represent the entity as separate role/type-specific
+fiber nodes, the duplicate must be deduplicated or left candidate and must not
+count toward accepted target totals.
 
 ### 9.3 Instance Field Completion
 
@@ -3682,6 +3810,17 @@ validation_unavailable_rule:
 action_completion_rule:
 loop_completion_rule:
 
+## Semantic Acceptance Gate
+
+candidate_counting_rule:
+accepted_counting_rule:
+target_progress_rule:
+semantic_gate:
+source_backing_rule:
+field_completion_rule:
+duplicate_or_multitype_policy:
+seed_contract_status_rule:
+
 ## Stop Conditions
 
 stop_conditions:
@@ -3715,6 +3854,13 @@ instance counts, insufficient pair-specific evidence, or entity-resolution
 ambiguity, the loop must define the recovery policy fields above. A loop spec
 that only says "stop" for those recoverable conditions is incomplete unless the
 schema explains why the condition is terminal under the source policy.
+
+Every loop that can contribute to a `MAKE-GRAPH` target must also define its
+`Semantic Acceptance Gate`. The gate must say what may be written as a
+candidate, what may be promoted to accepted, which counter is allowed to move,
+and which shallow states are forbidden as pass states. For ordinary
+`MAKE-GRAPH`, `seed_contract_status_rule` must reject source-adapter-only or
+generic seed contracts as semantic completion.
 
 The generated protocol must not rely on prose such as "continue as needed"
 unless it also defines the loop variable, completion condition, recovery

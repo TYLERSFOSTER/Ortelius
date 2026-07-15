@@ -64,6 +64,34 @@ validation_unavailable_rule: stop
 action_completion_rule: one instance written or no candidate logged
 loop_completion_rule: target count reached
 
+## Semantic Acceptance Gate
+
+candidate_counting_rule: fixture candidates do not count toward MAKE-GRAPH targets unless explicitly accepted
+accepted_counting_rule: fixture accepted records require source-backed semantic evidence
+target_progress_rule: fixture target progress is logged separately from structural validation
+semantic_gate: fixture semantic gate documented for protocol validation
+source_backing_rule: fixture source policy controls accepted records
+field_completion_rule: fixture missing values follow declared missing-value policy
+duplicate_or_multitype_policy: fixture duplicates do not count without explicit policy
+seed_contract_status_rule: seed contracts do not satisfy MAKE-GRAPH semantic gates
+
+## Recovery Policy
+
+recoverable_failure_classes: fixture semantic shortfall, source timeout, sparse result, missing field depth
+recovery_ladder: retry_or_log_fixture_limitation
+recovery_attempt_budget: 1
+resume_condition: fixture recovery succeeds or limitation is logged
+exhaustion_condition: fixture recovery budget exhausted
+proxy_substitution_forbidden: true
+
+## Batch Execution
+
+batch_execution_meaning: single_fixture_batch_not_generated_code_loop
+batch_plan_path: runs/run_001/source_batch_plan.md
+batch_packet_path: runs/run_001/batch_packets/fixture_batch.md
+batch_size: fixture_small
+checkpoint_rule: update cursor and execution log after fixture action
+
 ## Stop Conditions
 
 stop_conditions: missing identity evidence, source boundary missing

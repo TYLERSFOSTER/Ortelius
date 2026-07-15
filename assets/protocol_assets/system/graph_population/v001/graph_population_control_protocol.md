@@ -975,6 +975,11 @@ The contract is complete only if:
 - semantic leaf loops define recoverable and terminal failure kinds;
 - semantic leaf loops define recovery ladders, child-loop generation rules,
   recovery budgets, resume-parent conditions, exhaustion conditions, and proxy-substitution bans;
+- every target-contributing loop spec defines a `Semantic Acceptance Gate`
+  that distinguishes candidate writes from accepted target progress;
+- no loop spec treats source-adapter seed contracts, generic field sets,
+  structural validation, query-result counts, or count probes as passing
+  semantic acceptance gates;
 - if `manifest.graph_build_target` exists, the target counts are derivable;
 - if `manifest.graph_build_target` exists, `manifest.control_loop_plan` binds
   those counts to loop completion rules;
@@ -1308,6 +1313,7 @@ Batch Execution
 Evidence Required
 Validation Required
 Completion Rule
+Semantic Acceptance Gate
 Stop Conditions
 Handoff
 ```
@@ -1623,6 +1629,22 @@ deferment.
 The review must also record `type_field_richness_gate_result`. If that result
 is absent, stop with `type_field_richness_gate_missing`.
 
+For ordinary `MAKE-GRAPH`, the executor must reject these as passing values:
+
+```text
+passed_seed_contract
+passed_source_adapter_only
+passed_with_generic_fields
+passed_structural_only
+```
+
+If every type has the same generic field set, or if the only
+domain-descriptive fields are reusable adapter/display fields such as
+`description` and `domain_note`, stop with
+`generic_type_field_schema_reused` or enter the generated type-field recovery
+child loop. Do not proceed to edge discovery as if deep type-specific field
+discovery has succeeded.
+
 ### 10.7 Type Edge Discovery From Enriched Types
 
 This project begins only after type-field review. It must use the enriched
@@ -1648,6 +1670,25 @@ deferred_relation_candidates
 relation_family_diversity_gate_result
 source_diversity_or_limitation_result
 ```
+
+For `MAKE-GRAPH` runs with an edge-instance target, the relation candidate
+report must also contain target-scale feasibility fields for every selected
+edge type:
+
+```text
+target_edges_for_this_type
+pair_evidence_feasibility_status
+pair_evidence_probe_count
+source_node_selection_strategy
+target_node_selection_strategy
+recovery_or_revision_action_if_below_target
+```
+
+If those fields are absent, stop with `edge_target_feasibility_missing`. If a
+selected edge type is valid but cannot plausibly support the requested number
+of pair-evidenced concrete edges, it must remain candidate/deferred and must
+not count toward the accepted edge-type target unless the manifest explicitly
+allows under-populated accepted edge types.
 
 If the report only lists selected edges and no rejected/deferred relation
 families, stop with `relation_diversity_report_missing`.
@@ -1751,6 +1792,9 @@ The gate must confirm:
   type-membership, or classification relation is counted;
 - no query-derived, projected, path-derived, co-membership, transitive-closure,
   or materialized-view relation is counted;
+- every accepted edge type has passed the pair-evidence feasibility gate when
+  the run has a nonzero `instances_per_edge_type` target, or else the edge is
+  deferred and excluded from accepted target counts;
 - every type edge has directed source and target type IDs;
 - rejected and deferred relation candidates are outside the frozen set;
 - the next loop iterates over exactly the frozen type edges.
@@ -1914,6 +1958,23 @@ analytical-view types.
 If a target count is missing and cannot be derived from the generated protocol,
 stop and ask for the missing decision.
 
+For any `MAKE-GRAPH` run with a nonzero edge-instance target, instance target
+selection must be edge-aware. Before selecting accepted nodes for a type, read
+the accepted type edges that use that type as source or target and identify
+which source queries expose relation-bearing candidates. Do not fill the node
+target with isolated source rows when those rows cannot plausibly support the
+requested edge layer.
+
+The target-selection report must state, for each eligible type node:
+
+```text
+required_source_edge_types
+required_target_edge_types
+relation_bearing_source_strategy
+allowed_isolated_node_count
+edge_support_frontier
+```
+
 ### 11.2 Instance Discovery
 
 For each fiber-population-eligible type node and target count:
@@ -1922,6 +1983,10 @@ For each fiber-population-eligible type node and target count:
 - deduplicate against existing candidate nodes;
 - write each candidate node with a valid `type_id`;
 - include identity evidence;
+- include type-membership evidence for the current `type_id`, not merely proof
+  that a broad query returned the row;
+- include relation-participation evidence or a frontier status when edge
+  targets depend on this type;
 - stop when the target count is reached or no defensible candidate remains.
 
 Do not write a fiber node whose label is merely a downstairs type label, source
@@ -1933,6 +1998,14 @@ Do not write a fiber node under a type whose membership is a query-derived
 cohort, source taxonomy filter, role intersection, path-derived class, or
 analytical view. Those belong in fields, relations, saved queries, or future
 analytical layers, not in the base fiber graph.
+
+If the same source entity appears under more than one accepted type, apply the
+bundle's multi-typing policy before counting it. A duplicate source entity may
+count under multiple type IDs only when the report records distinct
+type-membership evidence for each role/type projection and says whether the
+fiber graph intentionally represents one real-world entity as multiple
+role-specific fiber nodes. Otherwise deduplicate it or leave the duplicate
+candidate, and do not count it toward accepted target totals.
 
 ### 11.3 Instance Field Completion
 

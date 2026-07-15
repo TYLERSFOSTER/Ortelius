@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import pytest
@@ -57,6 +58,35 @@ def test_validate_protocol_bundle_rejects_invalid_fixtures(
     expected_code: str,
 ) -> None:
     report = validate_protocol_bundle(FIXTURE_ROOT / fixture_name)
+
+    assert not report.ok
+    assert report.has_code(expected_code)
+
+
+@pytest.mark.parametrize(
+    ("heading", "expected_code"),
+    [
+        ("Semantic Acceptance Gate", "missing_semantic_acceptance_gate"),
+        ("Recovery Policy", "missing_recovery_policy"),
+        ("Batch Execution", "missing_batch_execution_rule"),
+    ],
+)
+def test_validate_protocol_bundle_rejects_missing_semantic_loop_surfaces(
+    tmp_path: Path,
+    heading: str,
+    expected_code: str,
+) -> None:
+    bundle = tmp_path / "bundle"
+    shutil.copytree(VALID_BUNDLE, bundle)
+    loop_spec = bundle / "loop_specs" / "01_domain_suitability.md"
+    text = loop_spec.read_text(encoding="utf-8")
+    start = text.index(f"\n## {heading}\n")
+    next_start = text.find("\n## ", start + 1)
+    if next_start == -1:
+        next_start = len(text)
+    loop_spec.write_text(text[:start] + text[next_start:], encoding="utf-8")
+
+    report = validate_protocol_bundle(bundle)
 
     assert not report.ok
     assert report.has_code(expected_code)
