@@ -2159,10 +2159,23 @@ timeout -> retry_if_budget_remains -> fallback_if_declared -> partial_success_if
 rate_limited -> backoff_if_declared -> fallback_if_declared -> partial_success_if_allowed -> stop
 malformed_response -> retry_if_budget_remains -> fallback_if_declared -> stop
 insufficient_results -> fallback_if_declared -> partial_success_if_allowed -> graph_build_target_unmet
+insufficient_depth_for_declared_fields -> fallback_if_declared -> field_richness_limited or source_depth_limited -> stop
+insufficient_pair_evidence_for_edges -> fallback_if_declared -> edge_evidence_limited -> stop
 ```
 
 The executor may continue after source trouble only if the loop spec declares
 the relevant policy and repository state has been checkpointed.
+
+Partial success may write candidate records, frontier entries, source caches,
+and Markdown decision reports. It must not promote records to accepted target
+counts unless the semantic acceptance rules for source backing, field
+completion, and pair-specific evidence are satisfied.
+
+If source lookup cannot support declared type fields, declared relation fields,
+source-backed instances, or pair-specific edge evidence, stop with the precise
+limitation. Do not fill target counts with deterministic local completion,
+placeholder values, source-adapter-only identity rows, or endpoint pairings
+unless the human explicitly requested scaffold or smoke mode.
 
 Failure and event codes:
 
@@ -2173,6 +2186,9 @@ source_malformed_response
 source_fallback_used
 source_partial_success
 source_exhausted
+source_depth_limited
+field_richness_limited
+edge_evidence_limited
 missing_source_execution_policy
 ```
 
@@ -2352,8 +2368,18 @@ A protocol run is complete only when the fiber graph review passes or the
 generated protocol defines an earlier completion target.
 
 For a graph-build run with `manifest.graph_build_target`, the earlier
-completion target is valid only when the graph JSON counts satisfy the compiled
-target contract:
+completion target is valid only when semantic acceptance, not merely structural
+JSON validation, satisfies the compiled target contract.
+
+The executor must read:
+
+```text
+runs/<run_id>/reports/semantic_acceptance_report.md
+```
+
+If the report is missing, stop with `semantic_acceptance_report_missing`.
+
+The report must show:
 
 ```text
 actual_eligible_ordinary_type_node_count == graph_build_target.type_graph_targets.node_type_count
@@ -2364,6 +2390,14 @@ actual_base_relation_type_count == graph_build_target.type_graph_targets.edge_ty
 actual_query_derived_relation_type_count == 0
 actual_fiber_node_count == graph_build_target.fiber_graph_targets.expected_node_instances
 actual_fiber_edge_count == graph_build_target.fiber_graph_targets.expected_edge_instances
+accepted_base_entity_type_records == graph_build_target.type_graph_targets.node_type_count
+accepted_base_relation_type_records == graph_build_target.type_graph_targets.edge_type_count
+accepted_source_backed_fiber_nodes == graph_build_target.fiber_graph_targets.expected_node_instances
+accepted_field_complete_fiber_nodes == graph_build_target.fiber_graph_targets.expected_node_instances
+accepted_pair_evidenced_fiber_edges == graph_build_target.fiber_graph_targets.expected_edge_instances
+accepted_edge_field_complete_fiber_edges == graph_build_target.fiber_graph_targets.expected_edge_instances
+synthetic_records_counted_toward_target == false
+scaffold_records_counted_toward_target == false
 ```
 
 Ineligible metadata, source, taxonomy, schema, provenance, evidence, helper, or
@@ -2382,15 +2416,30 @@ also show:
 type_diversity_gate_result == passed
 base_entity_type_admission_gate_result == passed
 query_derived_type_rejection_gate_result == passed
-type_field_richness_gate_result == passed or precise_limitation_logged
+type_field_richness_gate_result == passed
 base_relation_admission_gate_result == passed
 query_derived_relation_rejection_gate_result == passed
 relation_family_diversity_gate_result == passed
-relation_field_richness_gate_result == passed or precise_limitation_logged
+relation_field_richness_gate_result == passed
+instance_field_completion_gate_result == passed
+edge_instance_evidence_gate_result == passed
+edge_instance_field_completion_gate_result == passed
+semantic_acceptance_status == passed
 distinct_predicate_family_count >= graph_build_target.type_graph_targets.edge_type_count
 query_derived_type_count == 0
 query_derived_relation_type_count == 0
 ```
+
+For `MAKE-GRAPH`, a precise limitation is a valid stop explanation, not a
+completion state. If type fields, relation fields, source-backed instances, or
+pair-specific edge evidence cannot be supported by the allowed sources, stop
+with the appropriate limitation status. Do not satisfy counts with
+deterministic local completion, placeholder records, source-adapter identity
+records, or endpoint pairing unless the human explicitly requested scaffold or
+smoke mode.
+
+Structural validation alone never satisfies `MAKE-GRAPH`. A graph may be
+structurally valid and still be incomplete.
 
 If raw edge counts pass but `distinct_predicate_family_count` is below the
 requested edge-type count, stop with `semantic_edge_target_unmet`. Report the
@@ -2400,6 +2449,20 @@ If raw node or edge counts pass only because query-derived types or
 query-derived relations were counted as base records, stop with
 `base_graph_target_semantically_invalid`. Report the graph as structurally
 present but semantically invalid for the requested base graph target.
+
+If raw fiber-node counts pass but accepted source-backed or field-complete node
+counts do not pass, stop with `semantic_acceptance_incomplete`. Report which
+type targets lack accepted records and which fields or source classes blocked
+acceptance.
+
+If raw fiber-edge counts pass but accepted pair-evidenced or edge-field-complete
+edge counts do not pass, stop with `edge_evidence_limited` or
+`semantic_acceptance_incomplete`. Report which edge types lack pair-specific
+evidence for concrete source-predicate-target assertions.
+
+If synthetic, deterministic, placeholder, scaffold, or completion-policy
+records were counted toward graph-build targets without explicit scaffold mode,
+stop with `synthetic_records_counted_toward_target`.
 
 If the bundle declares an overflow policy other than exact counts, the manifest
 must state that policy explicitly. Otherwise, do not exceed the requested
@@ -2429,6 +2492,16 @@ query_derived_relation_rejection_gate_result
 relation_family_diversity_gate_result
 relation_field_richness_gate_result
 distinct_predicate_family_count
+semantic_acceptance_report
+semantic_acceptance_status
+accepted_base_entity_type_records
+accepted_base_relation_type_records
+accepted_source_backed_fiber_nodes
+accepted_field_complete_fiber_nodes
+accepted_pair_evidenced_fiber_edges
+accepted_edge_field_complete_fiber_edges
+synthetic_records_counted_toward_target
+scaffold_records_counted_toward_target
 validation_result
 unmet_target, if any
 ```
@@ -2470,6 +2543,16 @@ Stop immediately if:
   graph-build edge types without explicit endpoint-variant scope;
 - relation field richness gate is missing before edge-field review completes;
 - raw graph counts are met but semantic richness gates fail;
+- semantic acceptance report is missing before graph-build completion;
+- semantic acceptance report exists but does not pass;
+- accepted source-backed fiber-node counts are below the graph-build target;
+- accepted field-complete fiber-node counts are below the graph-build target;
+- accepted pair-evidenced fiber-edge counts are below the graph-build target;
+- accepted edge-field-complete fiber-edge counts are below the graph-build
+  target;
+- synthetic, deterministic, placeholder, scaffold, or completion-policy
+  records were counted toward graph-build targets without explicit scaffold
+  mode;
 - type field discovery begins before the type set is frozen;
 - type edge discovery begins before type-field review is complete or
   explicitly deferred;
@@ -2588,6 +2671,7 @@ source_malformed_response
 source_fallback_used
 source_partial_success
 source_exhausted
+source_depth_limited
 missing_batch_execution_policy
 missing_entity_resolution_policy
 entity_resolution_ambiguous
@@ -2596,6 +2680,7 @@ type_diversity_report_missing
 type_diversity_gate_failed
 type_field_richness_gate_missing
 type_field_richness_limited
+field_richness_limited
 type_set_not_frozen
 type_fields_not_reviewed
 edge_set_not_frozen
@@ -2606,6 +2691,12 @@ relation_field_richness_gate_missing
 relation_field_richness_limited
 semantic_edge_target_unmet
 semantic_graph_target_incomplete
+semantic_acceptance_report_missing
+semantic_acceptance_incomplete
+instance_field_completion_incomplete
+edge_instance_evidence_limited
+edge_field_completion_incomplete
+synthetic_records_counted_toward_target
 out_of_phase_write
 missing_edge_instance_budget
 missing_edge_field_completion_policy

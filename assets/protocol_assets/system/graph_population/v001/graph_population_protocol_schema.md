@@ -782,13 +782,13 @@ InstancePopulation.Type.SourceBatch.WriteInstanceNodes:
   iterator: each fiber-population-eligible frozen type node
   target_count_per_type: graph_build_target.fiber_graph_targets.instances_per_node_type
   writes: candidate_graphs/<fiber_graph_id>/nodes.json
-  completion: each eligible type node has target_count_per_type fiber nodes or stop condition fires
+  completion: each eligible type node has target_count_per_type accepted, source-backed, field-complete fiber nodes or stop condition fires
 
 EdgePopulation.EdgeType.SourceBatch.WriteEdgeInstances:
   iterator: each fiber-population-eligible frozen type edge
   target_count_per_edge_type: graph_build_target.fiber_graph_targets.instances_per_edge_type
   writes: candidate_graphs/<fiber_graph_id>/edges.json
-  completion: each eligible type edge has target_count_per_edge_type fiber edges or stop condition fires
+  completion: each eligible type edge has target_count_per_edge_type accepted, pair-evidenced, edge-field-complete fiber edges or stop condition fires
 ```
 
 The generated bundle must not call scaffold creation, graph JSON initialization,
@@ -883,6 +883,81 @@ actual_fiber_node_count
 actual_fiber_edge_count
 ```
 
+These raw metrics are not sufficient by themselves. The generated bundle must
+also expose semantic acceptance metrics that distinguish written records from
+accepted semantic records:
+
+```text
+written_type_node_records
+accepted_base_entity_type_records
+type_nodes_with_domain_descriptive_fields
+written_type_edge_records
+accepted_base_relation_type_records
+type_edges_with_relation_descriptive_fields
+written_fiber_node_records
+candidate_fiber_node_records
+accepted_source_backed_fiber_nodes
+accepted_field_complete_fiber_nodes
+written_fiber_edge_records
+candidate_fiber_edge_records
+accepted_pair_evidenced_fiber_edges
+accepted_edge_field_complete_fiber_edges
+synthetic_or_deterministic_node_records
+synthetic_or_deterministic_edge_records
+scaffold_node_records
+scaffold_edge_records
+synthetic_records_counted_toward_target
+scaffold_records_counted_toward_target
+```
+
+`MAKE-GRAPH` target counts are satisfied only by accepted semantic records:
+
+```text
+accepted_base_entity_type_records == graph_build_target.type_graph_targets.node_type_count
+accepted_base_relation_type_records == graph_build_target.type_graph_targets.edge_type_count
+accepted_source_backed_fiber_nodes == graph_build_target.fiber_graph_targets.expected_node_instances
+accepted_field_complete_fiber_nodes == graph_build_target.fiber_graph_targets.expected_node_instances
+accepted_pair_evidenced_fiber_edges == graph_build_target.fiber_graph_targets.expected_edge_instances
+accepted_edge_field_complete_fiber_edges == graph_build_target.fiber_graph_targets.expected_edge_instances
+synthetic_records_counted_toward_target == false
+scaffold_records_counted_toward_target == false
+```
+
+Synthetic, deterministic, placeholder, scaffold, or completion-policy records
+may be written only as candidate scaffolds or frontier aids. They must not
+count toward accepted graph-build targets unless the human explicitly requests
+scaffold mode. A run that reaches requested raw counts by writing those records
+must stop as semantically incomplete.
+
+Accepted fiber nodes must be source-backed and field-complete according to the
+type-specific `type_fields` discovered earlier in the generated bundle. The
+schema must not allow a fiber node to count merely because it has a source ID,
+label, URL, coordinate, source category, or other source-adapter field.
+
+Accepted fiber edges must have pair-specific evidence for the exact source
+node, primitive relation, and target node. A source-backed source node plus a
+source-backed target node plus a compatible type edge is not evidence of a
+concrete edge. Deterministic endpoint pairing, shared bucket membership,
+co-presence in the graph, endpoint compatibility, or source-category overlap
+must not count as pair-specific evidence.
+
+Every `MAKE-GRAPH` generated bundle must include:
+
+```text
+runs/<run_id>/reports/semantic_acceptance_report.md
+```
+
+The semantic acceptance report is the completion authority for accepted target
+counts. It must include the counters above, sources or report paths supporting
+the counters, the relevant validation result, and the final status:
+
+```text
+semantic_acceptance_status:
+  passed | semantic_acceptance_incomplete | source_depth_limited | field_richness_limited | edge_evidence_limited
+```
+
+Structural validation alone never satisfies `MAKE-GRAPH`.
+
 Ineligible metadata, source, taxonomy, schema, provenance, evidence, helper, or
 classification records must not count toward graph-build targets. Endpoint
 variants of one predicate family must not count as multiple edge-type targets
@@ -974,12 +1049,12 @@ Examples of derived or cohort types that must not be admitted as base types
 unless the human explicitly asks for analytical views:
 
 ```text
-award_winning_artist
-artists_who_studied_at_yale
-museum_with_warhol_works
-artist_connected_to_collector
-painters_born_after_1950
-student_of_student_of_artist
+award_winning_entity
+entities_with_shared_affiliation
+organizations_with_items_matching_filter
+entity_connected_to_entity_by_path
+entities_created_after_date_threshold
+entity_reachable_by_two_step_relation
 wikidata_occupation_class
 osm_feature_class
 ```
@@ -999,24 +1074,24 @@ Examples of derived relation types that must not be admitted as base edges
 unless the human explicitly requests an analytical/projection layer:
 
 ```text
-artist_shares_school_with_artist
-artist_shares_award_with_artist
-artist_is_student_of_student_of_artist
-artist_has_same_collector_as_artist
+entity_shares_affiliation_with_entity
+entity_shares_award_with_entity
+entity_is_connected_by_two_step_path_to_entity
+entity_has_same_related_entity_as_entity
 entity_has_same_source_category_as_entity
 ```
 
 Valid primitive relations can still be deep:
 
 ```text
-artist_created_artwork
-artist_studied_at_institution
-artist_studied_under_artist
-gallery_represented_artist
-collector_acquired_artwork
-museum_holds_artwork
-curator_organized_exhibition
-critic_reviewed_exhibition
+person_founded_organization
+organization_operates_facility
+entity_created_work
+entity_participated_in_event
+organization_sponsored_program
+place_hosts_institution
+person_mentored_person
+organization_acquired_asset
 ```
 
 ### Fiber Graph
@@ -1199,6 +1274,7 @@ shape:
         <batch_id>.md
       reports/
         generated_bundle_acceptance_report.md
+        semantic_acceptance_report.md
         design_reconnaissance_report.md
         type_set_discovery_report.md
         type_field_discovery_report.md
@@ -1276,6 +1352,16 @@ Minimum candidate shape:
     "completion_target": "graph_build_targets_met",
     "overflow_policy": "stop_before_exceeding_requested_counts"
   },
+  "semantic_acceptance": {
+    "required_report": "runs/run_001/reports/semantic_acceptance_report.md",
+    "accepted_records_count_toward_targets_only": true,
+    "synthetic_or_deterministic_records_count_toward_targets": false,
+    "scaffold_records_count_toward_targets": false,
+    "source_backed_fiber_nodes_required": true,
+    "field_complete_fiber_nodes_required": true,
+    "pair_evidenced_fiber_edges_required": true,
+    "edge_field_complete_fiber_edges_required": true
+  },
   "control_loop_plan": {
     "plan_id": "control_loop_plan_001",
     "representation": "dotted_loop_path",
@@ -1338,6 +1424,7 @@ Minimum candidate shape:
     "batch_packet_root": "runs/run_001/batch_packets",
     "report_root": "runs/run_001/reports",
     "generated_bundle_acceptance_report": "runs/run_001/reports/generated_bundle_acceptance_report.md",
+    "semantic_acceptance_report": "runs/run_001/reports/semantic_acceptance_report.md",
     "tool_output_root": "runs/run_001/tool_outputs"
   },
   "initial_run_state": {
@@ -1403,7 +1490,12 @@ Minimum candidate shape:
     "agentic_loop_ownership_defined": true,
     "generated_code_loop_forbidden": true,
     "tool_output_artifact_policy_defined": true,
-    "source_cache_persistence_defined": true
+    "source_cache_persistence_defined": true,
+    "semantic_acceptance_report_defined": true,
+    "accepted_record_counting_policy_defined": true,
+    "synthetic_scaffold_exclusion_defined": true,
+    "source_backed_instance_target_defined": true,
+    "pair_evidenced_edge_target_defined": true
   }
 }
 ```
@@ -1465,8 +1557,20 @@ The run contract is complete only if:
 - if the request came through `MAKE-GRAPH`, the generated-bundle acceptance
   report path is defined as
   `runs/<run_id>/reports/generated_bundle_acceptance_report.md`;
+- if the request came through `MAKE-GRAPH`, the semantic acceptance report path
+  is defined as `runs/<run_id>/reports/semantic_acceptance_report.md`;
 - if the request came through `MAKE-GRAPH`, the generated-bundle acceptance
   command is defined or a validation-unavailable stop has been logged;
+- if the request came through `MAKE-GRAPH`, the accepted-record counting policy
+  says that only source-backed, field-complete accepted semantic records count
+  toward graph-build targets;
+- if the request came through `MAKE-GRAPH`, synthetic, deterministic,
+  placeholder, scaffold, or completion-policy records are explicitly excluded
+  from accepted target counts unless the human explicitly requested scaffold
+  mode;
+- if the request came through `MAKE-GRAPH`, accepted fiber-edge target counts
+  require pair-specific evidence for the exact source node, primitive relation,
+  and target node;
 - the initial cursor scaffold is defined and matches the manifest run ID and
   protocol ID;
 - the initial execution log scaffold is defined and matches the cursor and
@@ -2338,9 +2442,12 @@ relation_affordance
 ```
 
 A type is field-rich only if it has at least one identity field and at least
-one domain-descriptive field. For deeper graph-build targets, the generated
-protocol should require at least three non-source-adapter field families per
-selected type or a precise source-depth limitation.
+one domain-descriptive field. For `MAKE-GRAPH` targets, the generated protocol
+must require at least three domain-descriptive field entries, or at least three
+non-source-adapter semantic field families, per selected type. If the allowed
+sources cannot support that depth, the bundle must log a precise source-depth
+limitation and the graph-build run must stop as semantically incomplete unless
+the human explicitly requested scaffold or smoke mode.
 
 The loop spec must expose:
 
@@ -2389,7 +2496,7 @@ but it does not by itself count as deep domain field discovery.
 
 For each ordinary domain entity type, the generated protocol must either:
 
-- define at least one identity field and at least one domain-descriptive field
+- define at least one identity field and the required domain-descriptive fields
   to seek; or
 - record `domain_descriptive_field_status: unavailable_at_current_source_depth`
   with sources checked, reason, and the loop that must revisit it.
@@ -2399,6 +2506,12 @@ graphs only when the generated protocol explicitly marks the graph as a
 minimal source-backed candidate and schedules later field-enrichment loops.
 They are not sufficient for a graph-build run whose requested output is meant
 to demonstrate strong semantic structure.
+
+Once a type's `type_fields` are declared, those fields become the type-specific
+acceptance contract for upstairs records. An instance of that type must not
+count toward `MAKE-GRAPH` target counts unless required identity and
+domain-descriptive fields are filled, explicitly blocked, or explicitly
+deferred according to the declared `missing_value_policy`.
 
 The loop spec must also define source boundaries:
 
@@ -2768,7 +2881,9 @@ A relation field set is not rich merely because it contains source ID, source
 URL, source node, target node, address, coordinate, or provenance fields. Each
 edge type must either define at least one relation-descriptive field for the
 predicate family or log `relation_field_richness_limited` with sources checked,
-reason, and a revisit frontier.
+reason, and a revisit frontier. For `MAKE-GRAPH` targets, a limitation here
+means the graph-build run is semantically incomplete unless the human
+explicitly requested scaffold or smoke mode.
 
 Every relation field definition must include or be accompanied by:
 
@@ -2779,6 +2894,13 @@ enrichment_priority
 evidence_threshold
 allowed_source_adapters
 ```
+
+Once an edge type's `type_fields` are declared, those fields become the
+relation-specific acceptance contract for upstairs edge records. An instance
+of that edge type must not count toward `MAKE-GRAPH` target counts unless the
+concrete source-predicate-target assertion has pair-specific evidence and the
+required relation fields are filled, explicitly blocked, or explicitly
+deferred according to the declared `missing_value_policy`.
 
 ### 8.8 Type Graph Ready Gate
 
