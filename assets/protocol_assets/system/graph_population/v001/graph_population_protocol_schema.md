@@ -146,6 +146,42 @@ manifest + control_loop_plan + loop_specs + cursor + log + reports
 The generated Markdown/JSON/log surface, not Codex memory, is the authority for
 what has been planned, executed, blocked, or completed.
 
+### 0.0.2.0 Hard MAKE-GRAPH Continuation Rule
+
+For any invocation compiled as ordinary `MAKE-GRAPH` with
+`graph_build_target.completion_target: graph_build_targets_met`, Codex must not
+stop after bundle generation, generated-bundle acceptance, domain suitability,
+graph JSON initialization, source-scope setup, source-batch planning, validation
+of empty graph files, or any other administrative/setup action. Those actions
+are prerequisites only.
+
+After the generated-bundle acceptance gate passes, this schema must hand off to
+the control protocol through repo-local artifacts with an effective execution
+contract equivalent to:
+
+```text
+EXECUTE-BUNDLE
+continue_until: graph_build_targets_met
+```
+
+The execution phase must continue into source-grounded type discovery, then the
+subsequent generated semantic loops, until one of these happens:
+
+```text
+1. semantic graph targets are met and semantic acceptance passes;
+2. the human explicitly stops the run;
+3. an explicit execution budget is exhausted and logged as a pause, not success;
+4. validation fails in a way the current action cannot repair;
+5. a real semantic/source blocker is logged after the generated recovery ladder
+   has been attempted or ruled inapplicable.
+```
+
+A generated-bundle acceptance report proves only that the workflow program is
+well formed. It does not prove that the graph has been built. A `MAKE-GRAPH`
+run with zero accepted semantic graph records and no logged blocker must be
+reported as `make_graph_stopped_before_semantic_action`, not as success or
+near-success.
+
 ### 0.0.2.1 Recoverable Semantic Leaf Failure Directive
 
 A graph-population run is supposed to push through recoverable semantic
@@ -238,9 +274,17 @@ For `MAKE-GRAPH`:
 4. create the generated bundle, including explicit Markdown loop surfaces;
 5. run generated-bundle acceptance checks;
 6. stop if the bundle is incomplete;
-7. load the control protocol and execute through repo-local handoff artifacts;
-8. continue only through repo-local handoff artifacts, not memory.
+7. load the control protocol and hand off through repo-local artifacts with
+   continue_until: graph_build_targets_met;
+8. execute until semantic graph targets are met, the human stops, an explicit
+   execution budget pauses the run, or a real logged blocker fires;
+9. continue only through repo-local handoff artifacts, not memory.
 ```
+
+For ordinary `MAKE-GRAPH`, steps such as domain suitability, graph JSON
+initialization, source-scope setup, source-batch planning, or validation of
+empty graph files are setup prerequisites. They are not completed graph actions
+and must not be the final action unless they fail with a precise blocker.
 
 For a guided or onboarding invocation, briefly explain where the run is before
 asking for inputs. For expert invocations, give the short mode/readiness
@@ -653,9 +697,11 @@ For a `MAKE-GRAPH` invocation, Codex must run this macro sequence:
 5. run generated-bundle acceptance checks;
 6. stop if the generated bundle is incomplete;
 7. hand off only through repo-local generated artifacts;
-8. run EXECUTE-BUNDLE under graph_population_control_protocol.md;
+8. run EXECUTE-BUNDLE under graph_population_control_protocol.md with
+   continue_until: graph_build_targets_met;
 9. execute the explicit Markdown loop surface until semantic graph targets are
-   met or a logged stop condition fires.
+   met, the human stops, an explicit execution budget pauses the run, or a real
+   logged blocker fires.
 ```
 
 If the human asks only to generate a bundle, Codex must stop after step 4. If
@@ -687,6 +733,17 @@ Acceptance means:
    been logged;
 4. the result has been written to
    runs/<run_id>/reports/generated_bundle_acceptance_report.md.
+```
+
+For `MAKE-GRAPH`, generated-bundle acceptance must also state that the bundle is
+accepted for execution but the graph is not yet built. The report must name the
+required continuation target:
+
+```text
+bundle_status: accepted_for_execution
+graph_build_status: not_built_yet
+next_required_control_continuation: graph_build_targets_met
+setup_actions_count_as_graph_progress: false
 ```
 
 A generated bundle may be handed to the control protocol only when that report
@@ -865,6 +922,12 @@ source-scope setup, or a single first action sufficient for a `MAKE-GRAPH`
 request. Those are prerequisites. Completion means the requested graph target
 counts are met, or the run stops with a precise logged blocker explaining which
 target could not be met and why.
+
+For ordinary `MAKE-GRAPH`, the first source-grounded graph-population action
+after setup must enter the type-set discovery loop. If setup succeeds, the
+control surface must auto-advance into source-grounded type discovery rather
+than returning a user-facing completion report. If type discovery cannot begin,
+the run must log the blocker that prevents the first semantic action.
 
 ### Semantic Richness Contract
 
@@ -3931,7 +3994,9 @@ compile graph_build_target
 generate bundle
 run generated-bundle acceptance checks
 execute only through graph_population_control_protocol.md
-stop when semantic graph targets are met or a stop condition fires
+with continue_until: graph_build_targets_met
+stop only when semantic graph targets are met, the human stops, an explicit
+execution budget pauses the run, or a real logged blocker fires
 ```
 
 The macro must not use hidden state between generation and execution phases.
@@ -3977,6 +4042,12 @@ A generated protocol bundle is acceptable only if:
   dedicated generated file and is referenced by the manifest;
 - if `front_door_mode` is `MAKE-GRAPH`, the acceptance report says whether the
   generated bundle may be handed to the control protocol;
+- if `front_door_mode` is `MAKE-GRAPH`, the acceptance report states
+  `graph_build_status: not_built_yet` and
+  `next_required_control_continuation: graph_build_targets_met`;
+- if `front_door_mode` is `MAKE-GRAPH`, the manifest or acceptance report must
+  not set the schema handoff to `continue_until: first_completed_action` unless
+  the human explicitly requested manual step-through or debugging;
 - if `front_door_mode` is ordinary `MAKE-GRAPH`, the manifest must not record
   `live_population_lookup_authorization: not_supplied_in_invocation` unless the
   invocation explicitly says no_live_lookup, bundle_only, scaffold_only,

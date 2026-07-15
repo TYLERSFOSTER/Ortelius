@@ -5,7 +5,7 @@
 Start here only when a generated graph-population bundle already exists and you
 want Codex to execute or continue that bundle.
 
-Tell Codex:
+For a bundle created by `MAKE-GRAPH`, tell Codex:
 
 ```text
 EXECUTE-BUNDLE
@@ -16,13 +16,14 @@ as the control protocol.
 protocol_root: assets/protocol_assets/bundles/<domain_slug>/<protocol_id>
 run_id: run_001
 candidate_graph_root: assets/protocol_assets/bundles/<domain_slug>/<protocol_id>/candidate_graphs
-continue_until: first_completed_action
+continue_until: graph_build_targets_met
 validation_mode: bootstrap
 ```
 
-Use `continue_until: graph_build_targets_met` only when you want Codex to keep
-walking the generated Markdown loop surface until the requested graph targets
-are met or a stop condition fires.
+For a manual debugging pass on an existing bundle, you may explicitly ask for
+`continue_until: first_completed_action`. That setting means step once, update
+cursor/log, and stop. It is not the default for `MAKE-GRAPH` and must not be
+used for ordinary target-seeking graph construction.
 
 If you are starting from a sentence like "Make graph on domain...", point Codex
 at the schema first:
@@ -134,6 +135,47 @@ manifest + control_loop_plan + loop_specs + cursor + log + reports
 This control protocol executes the generated workflow program. It does not
 replace the generated workflow program.
 
+### 0.0.2.0 Hard MAKE-GRAPH Continuation Rule
+
+For any invocation or manifest with `front_door_mode: MAKE-GRAPH` and
+`graph_build_target.completion_target: graph_build_targets_met`, Codex must not
+stop after bundle generation, generated-bundle acceptance, domain suitability,
+graph JSON initialization, source-scope setup, source-batch planning, validation
+of empty graph files, or any other administrative/setup action. Those actions
+are prerequisites only.
+
+The effective control setting for ordinary `MAKE-GRAPH` execution is:
+
+```text
+continue_until: graph_build_targets_met
+```
+
+`continue_until: first_completed_action` is valid for an ordinary `MAKE-GRAPH`
+bundle only when the human explicitly asks for manual step-through, debugging,
+or a single bounded diagnostic action. It is not a valid default and it must not
+be inferred from the quick-use examples. If a schema handoff for ordinary
+`MAKE-GRAPH` supplies `first_completed_action`, stop with
+`make_graph_continue_until_invalid` before executing, because that handoff would
+collapse target-seeking graph construction into scaffold/admin stepping.
+
+After every successful setup prerequisite, Codex must immediately advance to
+the next ordered loop. After setup is complete, the next required semantic
+action is source-grounded type discovery. Execution continues through the
+generated semantic loops until one of these happens:
+
+```text
+1. semantic graph targets are met and semantic acceptance passes;
+2. the human explicitly stops the run;
+3. an explicit execution budget is exhausted and logged as a pause, not success;
+4. validation fails in a way the current action cannot repair;
+5. a real semantic/source blocker is logged after the generated recovery ladder
+   has been attempted or ruled inapplicable.
+```
+
+A run with zero accepted semantic graph records and no logged blocker has not
+made graph-population progress. Report it as
+`make_graph_stopped_before_semantic_action`, not as success or near-success.
+
 ### 0.0.2.1 Recoverable Semantic Leaf Failure Directive
 
 A graph-population run is designed to push through recoverable semantic
@@ -169,13 +211,17 @@ Use this dispatch table:
 EXECUTE-BUNDLE
   Use this control protocol to execute an existing generated bundle.
   Verify required files before any graph action.
-  Execute exactly the next legal bounded action unless continue_until says
-  otherwise.
+  If the manifest contains graph_build_target.completion_target:
+  graph_build_targets_met, use continue_until: graph_build_targets_met unless
+  the human explicitly requested manual step-through or debugging.
+  Otherwise execute exactly the next legal bounded action unless continue_until
+  says otherwise.
 
 MAKE-GRAPH, after bundle generation and acceptance
   Use this control protocol only for the execution phase.
   Read manifest.graph_build_target and manifest.control_loop_plan.
-  Execute until semantic targets are met or a true stop condition fires.
+  Execute with continue_until: graph_build_targets_met until semantic targets
+  are met or a true stop condition fires.
 
 MAKE-GRAPH, raw short request with no generated bundle
   Wrong document for the first phase.
@@ -208,7 +254,10 @@ After dispatch, perform this sequence before any graph-population action:
 7. read cursor.json and execution_log.md;
 8. reconcile candidate graph paths;
 9. derive the next legal bounded action from the cursor and loop surface;
-10. state the bounded action and stop condition before mutating files.
+10. if the manifest is an ordinary `MAKE-GRAPH` graph-build run, set the
+    effective continuation target to `graph_build_targets_met` unless explicit
+    manual step-through/debugging was requested;
+11. state the bounded action and stop condition before mutating files.
 ```
 
 If any required artifact is missing or contradictory, stop with a structured
@@ -443,6 +492,11 @@ For `MAKE-GRAPH` runs, this document must still execute only the explicit
 Markdown loop surface. It must not treat the macro as permission to skip loop
 specs, batch packets, Markdown decision reports, source caches, validation, or
 cursor/log updates.
+
+For ordinary `MAKE-GRAPH`, the schema handoff must be target-seeking. The
+effective execution contract is `continue_until: graph_build_targets_met`.
+Stopping after a setup/admin action is allowed only if that action fails and
+logs the blocker.
 
 If an invocation asks Codex to create a new domain-specific protocol bundle,
 Codex must stop and report:
@@ -748,7 +802,14 @@ bundle_only, scaffold_only, smoke_only, or no_population. The executor must not
 require a second natural-language authorization phrase before beginning
 source-backed population loops.
 
-Example:
+For ordinary `MAKE-GRAPH`, `continue_until` is effectively required and its
+default is target-seeking:
+
+```text
+continue_until: graph_build_targets_met
+```
+
+Example for a `MAKE-GRAPH` execution phase:
 
 ```text
 mode: EXECUTE-BUNDLE
@@ -758,18 +819,19 @@ protocol_root: assets/protocol_assets/bundles/example_domain/protocol_001
 run_id: run_001
 candidate_graph_root: assets/protocol_assets/bundles/example_domain/protocol_001/candidate_graphs
 validation_mode: bootstrap
-continue_until: first_completed_action
-```
-
-If `continue_until` is omitted, Codex should execute one bounded action and
-stop after updating cursor and log.
-
-Exception: if the manifest contains `graph_build_target.completion_target:
-graph_build_targets_met`, omitted `continue_until` means:
-
-```text
 continue_until: graph_build_targets_met
 ```
+
+If `continue_until` is omitted for a bundle whose manifest contains
+`graph_build_target.completion_target: graph_build_targets_met`, Codex must set
+the effective value to `graph_build_targets_met`. If a schema handoff for
+ordinary `MAKE-GRAPH` specifies `first_completed_action`, stop with
+`make_graph_continue_until_invalid` unless the human explicitly requested
+manual step-through or debugging.
+
+For non-target-seeking `EXECUTE-BUNDLE` runs, or explicit manual debugging,
+`continue_until: first_completed_action` means execute one bounded action and
+stop after updating cursor and log.
 
 For graph-build runs, one completed action is not success. Bundle creation,
 empty graph initialization, source-scope setup, and first-action completion are
@@ -827,7 +889,10 @@ execution and produce a failure report naming the missing contract field.
 
 The generated-bundle acceptance report is a handoff proof from the schema
 phase. It must exist for `MAKE-GRAPH`, but it is not a substitute for this
-control protocol's run-contract completeness check.
+control protocol's run-contract completeness check and it is not evidence that
+the graph has been built. For `MAKE-GRAPH`, the report should state
+`bundle_status: accepted_for_execution`, `graph_build_status: not_built_yet`,
+and `next_required_control_continuation: graph_build_targets_met`.
 
 For `MAKE-GRAPH`, the acceptance report must show one of:
 
@@ -932,6 +997,12 @@ The contract is complete only if:
 - if `manifest.graph_build_target.front_door_mode` is `MAKE-GRAPH`,
   `runs/<run_id>/reports/generated_bundle_acceptance_report.md` exists and
   records `generated_bundle_acceptance: passed`;
+- if `manifest.graph_build_target.front_door_mode` is `MAKE-GRAPH`, the
+  effective continuation target is `graph_build_targets_met` unless the human
+  explicitly requested manual step-through or debugging;
+- if `manifest.graph_build_target.front_door_mode` is ordinary `MAKE-GRAPH`,
+  `continue_until: first_completed_action` in a schema handoff is rejected as
+  `make_graph_continue_until_invalid`;
 - cursor and execution log paths exist;
 - for a newly generated bundle or empty execution log, the initial cursor
   scaffold matches the schema-defined `not_started` state;
@@ -2620,6 +2691,12 @@ scaffold records unless the human explicitly requested scaffold or smoke mode.
 Structural validation alone never satisfies `MAKE-GRAPH`. A graph may be
 structurally valid and still be incomplete.
 
+If an ordinary `MAKE-GRAPH` run stops after setup/admin actions with zero
+accepted semantic records and no logged validation, semantic, source, budget, or
+user-stop blocker, stop with `make_graph_stopped_before_semantic_action`. Do
+not describe bundle creation, graph initialization, domain suitability, or an
+empty semantic report as a successful graph-building run.
+
 If raw edge counts pass but `distinct_predicate_family_count` is below the
 requested edge-type count, stop with `semantic_edge_target_unmet`. Report the
 graph as structurally valid but semantically incomplete.
@@ -3084,7 +3161,9 @@ plain language before exposing manifest, cursor, log, or loop-spec details.
 
 A minimal smoke test for this control protocol should use a tiny generated
 bundle that explicitly sets no_live_lookup or scaffold/smoke mode. Ordinary
-`MAKE-GRAPH` is expected to authorize live source lookup by default.
+`MAKE-GRAPH` is expected to authorize live source lookup by default and to use
+`continue_until: graph_build_targets_met` unless the human explicitly requests
+manual step-through or debugging.
 
 The fixture should prove:
 
