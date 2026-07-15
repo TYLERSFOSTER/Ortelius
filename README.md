@@ -45,6 +45,29 @@ type, and then <E> edge types and <K> instances of each.
 Generated bundles are local runtime artifacts. They are ignored by git by
 default.
 
+### Two Scales Of Control
+
+Ortelius uses Codex at two scales of control: globally, as a policy-driven
+interpreter for the workflow; locally, as a source-grounded semantic synthesis
+primitive at the leaves of that workflow.
+
+Globally, Codex is not a mechanically enforced CPU, but the protocol documents
+constrain and cue its behavior because Codex chooses its next action by reading
+and following the protocol. The protocol schema acts as an executable
+metaprogram: Codex reads it, then generates the workflow manifest, loop specs,
+cursor/log scaffold, batch packets, and control-loop plan. The control protocol
+then acts as the interpreter contract: Codex reads the generated workflow
+program, advances the externalized program counter, executes the next legal
+bounded action, validates, logs, and resumes.
+
+Locally, at the leaves of the workflow, Codex is used as the semantic engine.
+The system calls on Codex to perform source-grounded semantic synthesis: to
+identify meaningful types, discover fields, distinguish primitive relationships
+from query-derived edges, and decide what the evidence justifies writing.
+
+The design trick is keeping those two roles separated. Ortelius makes Codex
+rigid where it should be rigid and creative where it should be creative.
+
 The Python package supports that workflow by loading graph JSON, validating
 graph invariants, inspecting graph counts, and materializing graph structure for
 NetworkX, PyG, and DGL readiness.
