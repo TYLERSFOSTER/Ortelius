@@ -65,12 +65,9 @@ The system calls on Codex to perform source-grounded semantic synthesis: to
 identify meaningful types, discover fields, distinguish primitive relationships
 from query-derived edges, and decide what the evidence justifies writing.
 
-The design trick is keeping those two roles separated. Ortelius makes Codex
-rigid where it should be rigid and creative where it should be creative.
+The central design trick in Ortelius is keeping these two roles separated. Ortelius makes Codex rigid where it should be rigid and creative where it should be creative.
 
-The Python package supports that workflow by loading graph JSON, validating
-graph invariants, inspecting graph counts, and materializing graph structure for
-NetworkX, PyG, and DGL readiness.
+The Python package `src/ortelius` within Ortelius supports the above workflow by loading graph JSON, validating graph invariants, inspecting graph counts, and materializing graph structure for NetworkX, PyG, and DGL readiness.
 
 Ortelius v0.1.0 does not itself call Codex, crawl the web, persist to a graph
 database, train graph ML models, or guarantee graph quality. It provides the
