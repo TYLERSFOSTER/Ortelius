@@ -83,12 +83,16 @@ flowchart TD
   E5 --> E6["Execute one Markdown-authorized action"]
   E6 --> E7["Persist source batches, Markdown reports, graph JSON changes, or tool output logs"]
   E7 --> E8["Validate affected state"]
-  E8 --> E9["Append execution_log entry"]
+  E8 --> E8A{"Recoverable semantic leaf failure?"}
+  E8A -->|"no"| E9["Append execution_log entry"]
+  E8A -->|"yes, recovery budget remains"| E8B["Expand explicit Markdown child loop, recovery frontier, and recovery cursor state; do not write proxy records"]
+  E8B --> E9
+  E8A -->|"terminal or recovery exhausted"| S
   E9 --> E10["Update cursor"]
 
   E10 -->|"continue allowed and target not met"| E2
   E10 -->|"graph_build_targets_met and semantic gates passed"| Z["Complete run"]
-  E10 -->|"stop condition"| S
+  E10 -->|"terminal stop or recovery exhausted"| S
 ```
 
 ## 0. Cold-Start Operational Bootloader
@@ -141,6 +145,36 @@ manifest + control_loop_plan + loop_specs + cursor + log + reports
 
 The generated Markdown/JSON/log surface, not Codex memory, is the authority for
 what has been planned, executed, blocked, or completed.
+
+### 0.0.2.1 Recoverable Semantic Leaf Failure Directive
+
+A graph-population run is supposed to push through recoverable semantic
+difficulty by creating explicit child loops, not by stopping early and not by
+writing proxy records.
+
+For every generated semantic leaf action, this schema must require the bundle
+to say what happens when the first attempt is shallow, sparse, rate-limited,
+field-poor, evidence-poor, or under-count. The required behavior is:
+
+```text
+1. classify the trouble;
+2. decide whether it is recoverable under the generated recovery policy;
+3. create or update the explicit Markdown child-loop surface;
+4. persist any source batch, frontier, or report state under the run directory;
+5. update cursor/log recovery state;
+6. execute the next bounded child-loop action;
+7. resume the parent loop only when the generated resume condition is met.
+```
+
+A recoverable semantic failure must not be repaired by synthetic,
+deterministic, serial-numbered, placeholder, source-adapter-only, endpoint-
+pairing, or scaffold records. Scaffold creation is not recovery. Raw count
+completion is not recovery. The only legal recovery is explicit source, query,
+frontier, field, relation, evidence, dedupe, or batching expansion represented
+in repo-local Markdown/JSON/log state.
+
+The generated bundle may stop only after the relevant recovery ladder is absent
+because the failure is terminal, or present and explicitly exhausted.
 
 ### 0.0.3 Invocation Dispatch
 
@@ -727,11 +761,27 @@ InstancePopulation.Type.SourceBatch.WriteInstanceNodes
 EdgePopulation.EdgeType.SourceBatch.WriteEdgeInstances
 ```
 
-Equivalent names such as `Type.Instance.Action`,
-`Domain.Type.Instance.Action`, or `Phase.Stage.Action` are allowed only when
-they expose the same loop indices, targets, writes, evidence rules, validation,
-cursor update rule, and handoff. Do not treat the literal words `Phase` and
-`Stage` as special.
+Every semantic leaf path must also have recovery companion paths. These are not
+optional commentary; they are the generated child-loop surfaces used when a
+leaf action gets hard but is still recoverable.
+
+Examples:
+
+```text
+TypeSetDiscovery.Recovery.ExpandCandidateSourceClasses
+TypeFieldDiscovery.Type.Recovery.ExpandFieldSourceStrategy
+TypeEdgeDiscovery.EnrichedTypePair.Recovery.ExpandRelationSearch
+TypeEdgeFieldDiscovery.EdgeType.Recovery.ExpandRelationFieldSearch
+InstancePopulation.Type.Recovery.ExpandInstanceSourceStrategy
+InstancePopulation.Type.Recovery.ResumeParentPopulation
+EdgePopulation.EdgeType.Recovery.ExpandPairEvidenceSearch
+EdgePopulation.EdgeType.Recovery.ResumeParentPopulation
+```
+
+Equivalent names such as `Type.Instance.Action`, `Domain.Type.Instance.Action`,
+or `Phase.Stage.Action` are allowed only when they expose the same loop indices,
+targets, writes, evidence rules, validation, cursor update rule, and handoff.
+Do not treat the literal words `Phase` and `Stage` as special.
 
 For `MAKE-GRAPH`, the plan must be represented in a dedicated generated file:
 
@@ -790,6 +840,12 @@ EdgePopulation.EdgeType.SourceBatch.WriteEdgeInstances:
   writes: candidate_graphs/<fiber_graph_id>/edges.json
   completion: each eligible type edge has target_count_per_edge_type accepted, pair-evidenced, edge-field-complete fiber edges or stop condition fires
 ```
+
+For each semantic leaf path in the minimum shape, the generated plan must also
+name the recovery loop that owns recoverable failure handling. A parent path is
+incomplete if it can fail from sparse sources, shallow fields, rate limits,
+insufficient pair evidence, entity-resolution ambiguity, or target shortfall
+without naming a child loop and recovery budget.
 
 The generated bundle must not call scaffold creation, graph JSON initialization,
 source-scope setup, or a single first action sufficient for a `MAKE-GRAPH`
@@ -924,10 +980,14 @@ scaffold_records_counted_toward_target == false
 ```
 
 Synthetic, deterministic, placeholder, scaffold, or completion-policy records
-may be written only as candidate scaffolds or frontier aids. They must not
-count toward accepted graph-build targets unless the human explicitly requests
-scaffold mode. A run that reaches requested raw counts by writing those records
-must stop as semantically incomplete.
+must not be used to pursue target-scale population in ordinary `MAKE-GRAPH`
+mode. They may appear only in explicit scaffold/smoke mode or as small,
+clearly labeled diagnostic/frontier aids that do not resemble accepted records
+and do not fill raw target counts. They must not count toward accepted
+graph-build targets unless the human explicitly requests scaffold mode. A run
+that reaches requested raw counts by writing those records has executed the
+wrong recovery behavior and must stop with `proxy_substitution_forbidden` or
+`semantic_acceptance_incomplete`, not present the raw counts as progress.
 
 Accepted fiber nodes must be source-backed and field-complete according to the
 type-specific `type_fields` discovered earlier in the generated bundle. The
@@ -969,6 +1029,74 @@ The shortest invariant is:
 Base node types are not views.
 Base edges are not queries.
 ```
+
+### Recoverable Semantic Leaf Failure Contract
+
+The generated bundle must distinguish terminal control failures from
+recoverable semantic failures.
+
+Terminal control failures include missing files, invalid JSON, contradictory
+cursor/log state, forbidden write targets, source lookup being disallowed, or a
+projection invariant violation. These may stop immediately with a structured
+failure report.
+
+Recoverable semantic failures include:
+
+```text
+insufficient_results
+source_rate_limited
+source_depth_limited
+field_richness_limited
+relation_family_diversity_unmet
+relation_field_richness_limited
+instance_count_shortfall
+field_completion_shortfall
+edge_pair_evidence_shortfall
+edge_field_completion_shortfall
+entity_resolution_ambiguous_when_review_policy_exists
+```
+
+For recoverable semantic failures, the generated bundle must define a recovery
+ladder before the control protocol executes the loop. The ladder may include:
+
+```text
+retry_with_backoff
+paginate_or_continue_source
+rewrite_query
+narrow_query
+broaden_query
+switch_source_adapter
+switch_source_class
+seed_from_authoritative_index
+extract_seed_list
+split_current_type_or_edge_work_into_batches
+create_field_enrichment_child_loop
+create_relation_evidence_child_loop
+create_entity_resolution_review_child_loop
+write_unprocessed_items_to_frontier
+resume_parent_loop
+```
+
+Every ladder step must be represented as Markdown loop work under the run
+directory. Recovery may not be hidden in Python, shell scripts, notebooks,
+model memory, terminal history, or temporary files.
+
+A recovery ladder is exhausted only when the generated attempt budget, source
+fallback order, query rewrite policy, source-class expansion policy, and
+frontier expansion policy have all been tried or explicitly ruled out. Only
+then may the run stop with a recovery-exhausted limitation such as:
+
+```text
+source_strategy_recovery_exhausted
+field_recovery_exhausted
+relation_discovery_recovery_exhausted
+instance_population_recovery_exhausted
+edge_evidence_recovery_exhausted
+```
+
+The semantic acceptance report must say whether unmet targets are unmet because
+recovery is still available, recovery was exhausted, source policy forbids more
+work, or a human scope decision is required.
 
 ## 1. Purpose
 
@@ -1433,6 +1561,7 @@ Minimum candidate shape:
     "execution_log_schema_version": "ortelius.protocol_execution_log.v0",
     "execution_log_status": "initialized_no_execution_actions",
     "execution_entries_status": "none",
+    "active_recovery": null,
     "last_log_entry_id": null
   },
   "run_artifact_policy": {
@@ -1491,6 +1620,10 @@ Minimum candidate shape:
     "generated_code_loop_forbidden": true,
     "tool_output_artifact_policy_defined": true,
     "source_cache_persistence_defined": true,
+    "recoverable_leaf_failure_policy_defined": true,
+    "semantic_child_loop_generation_defined": true,
+    "recovery_cursor_state_defined": true,
+    "proxy_substitution_forbidden": true,
     "semantic_acceptance_report_defined": true,
     "accepted_record_counting_policy_defined": true,
     "synthetic_scaffold_exclusion_defined": true,
@@ -1625,6 +1758,7 @@ with this shape:
     "current_edge_type_id": null,
     "current_batch_id": null
   },
+  "active_recovery": null,
   "completed_loop_ids": [],
   "completed_action_ids": [],
   "blocked_on": null,
@@ -1640,6 +1774,7 @@ The generated cursor must satisfy:
 - `status` is `not_started`;
 - `active_loop_id` and `active_action_id` are `null`;
 - every field in `active_iteration` is `null`;
+- `active_recovery` is `null`;
 - `completed_loop_ids` and `completed_action_ids` are empty arrays;
 - `blocked_on` is `null`;
 - `last_log_entry_id` is `null`;
@@ -2229,12 +2364,16 @@ pool larger than the requested count:
 candidate_type_pool_min_count >= requested_node_type_count * 2
 ```
 
-If the source policy or domain scope cannot support a 2x candidate pool, the
-run may continue only after logging:
+If the current source pass does not support a 2x candidate pool, the generated
+protocol must first enter the type-candidate recovery ladder when source-class
+expansion, query rewriting, seed indexes, or frontier expansion remain. The run
+may continue with a smaller pool only after recovery is exhausted or source
+policy/domain scope makes recovery inapplicable, and only after logging:
 
 ```text
 type_candidate_pool_limitation
 sources_checked
+recovery_attempted
 candidate_count_observed
 why_more_candidates_are_not_available
 effect_on_graph_depth
@@ -2314,11 +2453,14 @@ OSM Feature Class
 is not admissible because it is a source taxonomy/category, not an ordinary
 city entity type.
 
-Graph target counts do not relax admissibility. If Codex cannot find enough
-admissible domain entity types, it must stop with `graph_build_target_unmet`.
-It must not introduce metadata, schema, source, provenance, or classification
-types, query-derived cohorts, role intersections, or analytical views to
-satisfy node-type counts.
+Graph target counts do not relax admissibility. If the current pass cannot
+find enough admissible domain entity types, the generated protocol must route
+the shortfall into the type-discovery recovery ladder when source classes,
+query rewrites, seed indexes, or candidate-frontier expansion remain. It may
+stop with `graph_build_target_unmet` only after that recovery ladder is
+exhausted or source policy makes recovery inapplicable. It must not introduce
+metadata, schema, source, provenance, or classification types, query-derived
+cohorts, role intersections, or analytical views to satisfy node-type counts.
 
 The loop spec must define:
 
@@ -2444,10 +2586,12 @@ relation_affordance
 A type is field-rich only if it has at least one identity field and at least
 one domain-descriptive field. For `MAKE-GRAPH` targets, the generated protocol
 must require at least three domain-descriptive field entries, or at least three
-non-source-adapter semantic field families, per selected type. If the allowed
-sources cannot support that depth, the bundle must log a precise source-depth
-limitation and the graph-build run must stop as semantically incomplete unless
-the human explicitly requested scaffold or smoke mode.
+non-source-adapter semantic field families, per selected type. If the current
+source pass cannot support that depth, the generated protocol must enter the
+field-recovery child loop when recovery budget remains. Only after the declared
+field-recovery ladder is exhausted may the bundle log a precise source-depth
+limitation and stop the graph-build run as semantically incomplete unless the
+human explicitly requested scaffold or smoke mode.
 
 The loop spec must expose:
 
@@ -2640,9 +2784,13 @@ requested edge-type count:
 candidate_relation_family_pool_min_count >= requested_edge_type_count * 2
 ```
 
-If source depth cannot support that pool, the report must log
-`relation_candidate_pool_limitation` with sources checked, observed candidate
-families, and why deeper relation discovery is blocked.
+If the current source pass does not support that pool, the generated protocol
+must first enter the relation-candidate recovery ladder when source-class
+expansion, query rewriting, enriched type-pair expansion, or relation-frontier
+work remains. The report may log `relation_candidate_pool_limitation` only
+after recovery is exhausted or source policy makes recovery inapplicable, and
+must include sources checked, recovery attempted, observed candidate families,
+and why deeper relation discovery is blocked.
 
 The generated protocol must search across multiple relation-source classes
 when available. Examples:
@@ -2661,8 +2809,11 @@ documented collaboration
 ```
 
 A single source adapter may be used only if it can actually support distinct
-relation families. If it only exposes one cheap predicate family, the run must
-look for other source classes or stop as semantically incomplete.
+relation families. If it only exposes one cheap predicate family, the generated
+protocol must enter the relation-discovery recovery child loop when source
+classes, query rewrites, or relation-frontier expansion remain. It may stop as
+semantically incomplete only after that recovery ladder is exhausted or source
+policy makes recovery inapplicable.
 
 The generated loop must iterate over bounded relation-search work items such
 as enriched type pairs, type neighborhoods, or relation frontier items:
@@ -2731,10 +2882,13 @@ Disallowed type edges:
   `fiber_edge.type_id`, source metadata, source taxonomy, or a record field;
 - any edge introduced merely to satisfy an edge-type count target.
 
-If Codex cannot find enough admissible domain relation types, it must stop with
-`graph_build_target_unmet`. It must not introduce source, schema, provenance,
-classification, helper, proximity-only, or filler relation types to satisfy
-edge-type counts.
+If the current pass cannot find enough admissible domain relation types, the
+generated protocol must route the shortfall into the relation-discovery
+recovery ladder when source classes, query rewrites, relation-frontier items,
+or enriched type-pair exploration remain. It may stop with
+`graph_build_target_unmet` only after that recovery ladder is exhausted. It
+must not introduce source, schema, provenance, classification, helper,
+proximity-only, or filler relation types to satisfy edge-type counts.
 
 The loop spec must define:
 
@@ -2880,10 +3034,12 @@ The output must update `type_fields` on type edges.
 A relation field set is not rich merely because it contains source ID, source
 URL, source node, target node, address, coordinate, or provenance fields. Each
 edge type must either define at least one relation-descriptive field for the
-predicate family or log `relation_field_richness_limited` with sources checked,
-reason, and a revisit frontier. For `MAKE-GRAPH` targets, a limitation here
-means the graph-build run is semantically incomplete unless the human
-explicitly requested scaffold or smoke mode.
+predicate family or enter the edge-field-recovery child loop when recovery
+budget remains. Only after the declared recovery ladder is exhausted may the
+run log `relation_field_richness_limited` with sources checked, reason, and a
+revisit frontier. For `MAKE-GRAPH` targets, a limitation here means the
+graph-build run is semantically incomplete unless the human explicitly
+requested scaffold or smoke mode.
 
 Every relation field definition must include or be accompanied by:
 
@@ -3331,6 +3487,21 @@ action_prompt_template:
 allowed_subloops:
 attempt_budget:
 
+## Recovery Policy
+
+recoverable_failure_kinds:
+terminal_failure_kinds:
+recovery_ladder:
+child_loop_generation_rule:
+recovery_attempt_budget:
+source_strategy_fallback_order:
+query_rewrite_policy:
+source_class_expansion_policy:
+frontier_expansion_policy:
+resume_parent_condition:
+recovery_exhaustion_condition:
+proxy_substitution_forbidden: true
+
 ## Allowed Writes
 
 output_files:
@@ -3434,9 +3605,16 @@ current_batch_id
 
 If a loop contains a subloop, that subloop must be named and bounded.
 
+If a semantic leaf action can encounter shallow sources, sparse results, field
+richness limits, relation diversity limits, source rate limits, insufficient
+instance counts, insufficient pair-specific evidence, or entity-resolution
+ambiguity, the loop must define the recovery policy fields above. A loop spec
+that only says "stop" for those recoverable conditions is incomplete unless the
+schema explains why the condition is terminal under the source policy.
+
 The generated protocol must not rely on prose such as "continue as needed"
-unless it also defines the loop variable, completion condition, and stop
-condition.
+unless it also defines the loop variable, completion condition, recovery
+condition, and stop condition.
 
 For any loop that uses source lookup, candidate selection, or graph JSON
 writing, the loop spec must name the repo-local source batch cache and Markdown
@@ -3497,6 +3675,7 @@ It must include:
 - type graph ready gate;
 - edge-instance discovery budgets;
 - edge-field completion policies;
+- semantic recovery policies and child-loop generation rules;
 - run contract completeness summary;
 - stop conditions;
 - instructions for invoking the control protocol.
@@ -3528,6 +3707,8 @@ Compatibility requires:
 - path reconciliation fields;
 - source crawl boundaries;
 - source adapter fallback policy;
+- recoverable semantic failure policy;
+- child-loop generation policy for source, field, relation, instance, and edge-evidence recovery;
 - batch execution policy;
 - batch log shape;
 - source batch cache persistence before graph writes;
@@ -3545,6 +3726,7 @@ Compatibility requires:
 - type graph ready gate before fiber graph work;
 - edge-instance discovery budgets and frontier output;
 - edge-field completion policies;
+- recovery cursor state for active child loops;
 - enough metadata to resume after interruption;
 - unambiguous stop conditions;
 - graph validation gates between type-graph work and fiber-graph work.
@@ -3732,6 +3914,7 @@ A generated protocol bundle is acceptable only if:
 - initial `cursor.protocol_id` matches `manifest.protocol_id`;
 - initial `cursor.status` is `not_started`;
 - initial cursor active fields are `null`;
+- initial cursor `active_recovery` is `null`;
 - initial cursor completed loop/action lists are empty;
 - initial `cursor.last_log_entry_id` is `null` when the execution log has no
   entries;
@@ -3756,10 +3939,12 @@ A generated protocol bundle is acceptable only if:
 - every ordered loop has a loop spec;
 - every loop spec defines iterator, write rule, evidence rule, completion rule,
   and stop conditions;
-- every loop spec uses the required headings;
+- every loop spec uses the required headings, including `Recovery Policy`;
+- every semantic loop spec defines recoverable and terminal failure kinds;
+- every semantic loop spec defines a recovery ladder, child-loop generation rule, recovery budget, resume condition, exhaustion condition, and proxy-substitution ban;
 - every loop spec defines source boundaries;
 - every source-crawling loop defines source adapters, fallback behavior,
-  timeout/retry behavior, and batch execution;
+  timeout/retry behavior, semantic recovery behavior, and batch execution;
 - every batch-capable loop defines
   `batch_execution_meaning: markdown_batch_partition_not_generated_code_loop`;
 - every batch-capable loop defines `batch_plan_path` and
@@ -3801,14 +3986,14 @@ A generated protocol bundle is acceptable only if:
   endpoint/source-adapter fields;
 - edge-field review records complete, deferred, or blocked state for every
   frozen edge type;
-- field completion defines when missing values block, defer, or allow
-  continuation;
+- field completion defines when missing values block, defer, allow
+  continuation, or trigger a field-recovery child loop;
 - every loop spec defines a validation command, named validation checklist, or
   validation-unavailable stop rule;
 - the manifest records path reconciliation;
 - the generated protocol defines the type graph ready gate;
-- edge-instance discovery loops define budgets and frontier output;
-- edge-field completion loops define missing-value policies and frontier
+- edge-instance discovery loops define budgets, frontier output, and pair-evidence recovery policy;
+- edge-field completion loops define missing-value policies, recovery policy, and frontier
   output;
 - `run_contract_completeness.status` is `complete`;
 - the control protocol can identify a first legal action without guessing.
