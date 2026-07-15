@@ -742,6 +742,12 @@ continue_until
 validation_mode
 ```
 
+For bundles generated from ordinary `MAKE-GRAPH`, source lookup for population
+is authorized by the macro unless the manifest explicitly says no_live_lookup,
+bundle_only, scaffold_only, smoke_only, or no_population. The executor must not
+require a second natural-language authorization phrase before beginning
+source-backed population loops.
+
 Example:
 
 ```text
@@ -913,6 +919,16 @@ The contract is complete only if:
   `manifest.make_graph_orchestration` records
   `GENERATE-BUNDLE -> ACCEPT-GENERATED-BUNDLE -> EXECUTE-BUNDLE` and
   `repo_local_artifacts_only`;
+- if `manifest.graph_build_target.front_door_mode` is ordinary `MAKE-GRAPH`,
+  `manifest.source_execution.live_population_lookup_authorization` must be
+  `authorized_by_make_graph` unless the invocation explicitly requested
+  `no_live_lookup`, `bundle_only`, `scaffold_only`, `smoke_only`, or
+  `no_population`;
+- if `manifest.graph_build_target.front_door_mode` is ordinary `MAKE-GRAPH`,
+  `manifest.source_execution.live_population_lookup_authorization` must not be
+  `not_supplied_in_invocation` unless the invocation explicitly requested
+  `no_live_lookup`, `bundle_only`, `scaffold_only`, `smoke_only`, or
+  `no_population`;
 - if `manifest.graph_build_target.front_door_mode` is `MAKE-GRAPH`,
   `runs/<run_id>/reports/generated_bundle_acceptance_report.md` exists and
   records `generated_bundle_acceptance: passed`;
@@ -926,7 +942,10 @@ The contract is complete only if:
 - the first legal action can be identified without guessing.
 
 If the contract is incomplete, stop with `incomplete_run_contract` and write a
-failure report.
+failure report. If the only failing surface is an ordinary `MAKE-GRAPH` manifest
+that records `live_population_lookup_authorization: not_supplied_in_invocation`,
+use `make_graph_source_authorization_invalid` so the report names the stale or
+miscompiled source-authorization contract directly.
 
 ## 5. Graph Tool Compatibility Gates
 
@@ -2233,6 +2252,17 @@ over unsupported `accepted` records.
 
 Source crawling is always bounded by the current loop spec.
 
+For ordinary `MAKE-GRAPH`, live source lookup is part of the graph-building
+contract. If the environment requires a separate browser/network/tool approval,
+ask for that approval and continue after approval. Do not convert absent tool
+approval into a graph-population blocker. If approval is denied, stop with a
+source-approval failure that names the denied capability.
+
+If the manifest explicitly says `no_live_lookup`, `bundle_only`,
+`scaffold_only`, `smoke_only`, or `no_population`, and no source batches are
+provided, source-backed population cannot proceed and the executor must stop
+before graph fact writes.
+
 Design reconnaissance from `GENERATE-BUNDLE` is not population evidence by
 itself. If execution uses reconnaissance material to affect graph contents, it
 must import or revalidate that material as an `EXECUTE-BUNDLE` source batch and
@@ -2730,7 +2760,9 @@ Stop immediately if:
 - a fiber edge would encode projection, co-membership, path composition,
   transitive closure, or a materialized query result as a base relation;
 - source boundaries are missing;
-- source lookup is required but not allowed;
+- source lookup is explicitly forbidden by manifest source policy and no source
+  batches are provided;
+- source tool approval is required by the environment and the human denies it;
 - source execution policy is missing;
 - source batch times out and no retry, fallback, partial-success, or stop rule
   is declared;
@@ -2811,6 +2843,7 @@ recommended_next_action:
 wrong_mode
 missing_bundle_file
 incomplete_run_contract
+make_graph_source_authorization_invalid
 missing_loop_spec_heading
 missing_batch_packet
 path_reconciliation_required
@@ -2824,7 +2857,8 @@ inadmissible_type_node
 inadmissible_type_edge
 missing_fiber_population_eligibility
 missing_source_boundary
-source_lookup_not_allowed
+source_lookup_explicitly_forbidden
+source_tool_approval_denied
 missing_source_execution_policy
 missing_source_cache_path
 missing_recovery_policy
@@ -3049,7 +3083,8 @@ plain language before exposing manifest, cursor, log, or loop-spec details.
 ## 22. Smoke-Test Shape
 
 A minimal smoke test for this control protocol should use a tiny generated
-bundle with no live web lookup.
+bundle that explicitly sets no_live_lookup or scaffold/smoke mode. Ordinary
+`MAKE-GRAPH` is expected to authorize live source lookup by default.
 
 The fixture should prove:
 

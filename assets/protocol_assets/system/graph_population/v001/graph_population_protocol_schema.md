@@ -191,6 +191,9 @@ MAKE-GRAPH
   Treat as a front-door macro.
   Parse the short graph request.
   Compile graph_build_target.
+  Default source policy is live_lookup_required_and_authorized unless the
+  invocation explicitly says no_live_lookup, bundle_only, scaffold_only,
+  smoke_only, or no_population.
   Generate the bundle under this schema.
   Run generated-bundle acceptance checks.
   If the prompt asks to make/populate the graph, hand off through files to
@@ -230,12 +233,13 @@ For `MAKE-GRAPH`:
 
 ```text
 1. parse the request into graph_build_target;
-2. identify source policy and source-scope requirements;
-3. create the generated bundle, including explicit Markdown loop surfaces;
-4. run generated-bundle acceptance checks;
-5. stop if the bundle is incomplete;
-6. if execution is authorized, load the control protocol;
-7. continue only through repo-local handoff artifacts, not memory.
+2. set default_source_policy_for_make_graph: live_lookup_required_and_authorized unless explicitly forbidden;
+3. identify source-scope requirements and source boundaries;
+4. create the generated bundle, including explicit Markdown loop surfaces;
+5. run generated-bundle acceptance checks;
+6. stop if the bundle is incomplete;
+7. load the control protocol and execute through repo-local handoff artifacts;
+8. continue only through repo-local handoff artifacts, not memory.
 ```
 
 For a guided or onboarding invocation, briefly explain where the run is before
@@ -644,12 +648,13 @@ For a `MAKE-GRAPH` invocation, Codex must run this macro sequence:
 ```text
 1. parse the short request;
 2. compile graph_build_target;
-3. run GENERATE-BUNDLE under this schema;
-4. run generated-bundle acceptance checks;
-5. stop if the generated bundle is incomplete;
-6. hand off only through repo-local generated artifacts;
-7. run EXECUTE-BUNDLE under graph_population_control_protocol.md;
-8. execute the explicit Markdown loop surface until semantic graph targets are
+3. set source policy to live_lookup_required_and_authorized unless explicitly forbidden;
+4. run GENERATE-BUNDLE under this schema;
+5. run generated-bundle acceptance checks;
+6. stop if the generated bundle is incomplete;
+7. hand off only through repo-local generated artifacts;
+8. run EXECUTE-BUNDLE under graph_population_control_protocol.md;
+9. execute the explicit Markdown loop surface until semantic graph targets are
    met or a logged stop condition fires.
 ```
 
@@ -661,6 +666,14 @@ acceptance gate passes.
 The `MAKE-GRAPH` macro must not skip source policy, source boundary, batch
 packet, Markdown report, validation, or run-contract checks in order to feel
 like a single command.
+
+For ordinary `MAKE-GRAPH`, source policy must not be interpreted as missing
+just because the human did not separately write "live lookup authorized." The
+command to make the graph authorizes the source lookup needed to satisfy
+source-backed semantic graph targets. A generated bundle may use
+`live_population_lookup_authorization: not_supplied_in_invocation` only when
+the invocation explicitly requests `GENERATE-BUNDLE`, `bundle_only`,
+`no_live_lookup`, `no_population`, `scaffold_only`, or `smoke_only`.
 
 The generated-bundle acceptance gate is a schema-side proof step. It is not the
 same thing as control-time run-contract completeness.
@@ -1353,9 +1366,25 @@ candidate_graph_root: assets/protocol_assets/bundles/example_domain/protocol_001
 run_contract_id: run_contract_001
 ```
 
-The invocation should also say whether Codex may use live web/source lookup
-while designing the protocol. If not stated, the generated protocol should
-include source requirements but should not perform live population.
+Source policy defaults are mode-sensitive:
+
+```text
+GENERATE-BUNDLE:
+  Live web/source lookup is not implied unless explicitly allowed. The bundle
+  should include source requirements but should not perform live population.
+
+MAKE-GRAPH:
+  Live web/source lookup for population is required and authorized by default,
+  because source-backed semantic targets cannot be met without source access.
+  The generated manifest must record
+  live_population_lookup_authorization: authorized_by_make_graph unless the
+  invocation explicitly says no_live_lookup, bundle_only, scaffold_only,
+  smoke_only, or no_population.
+```
+
+If the execution environment requires a separate tool approval before browsing
+or source access, Codex must ask for that approval at execution time. It must
+not convert missing tool approval into a graph-population blocker.
 
 ## 4. Output Directory Contract
 
@@ -1513,6 +1542,10 @@ Minimum candidate shape:
     "batch_execution_contract_defined": true,
     "batch_log_shape_defined": true,
     "entity_resolution_contract_defined": true,
+    "default_source_policy_for_make_graph": "live_lookup_required_and_authorized",
+    "live_population_lookup_authorization": "authorized_by_make_graph",
+    "population_without_live_or_supplied_sources": "not_applicable_live_lookup_authorized",
+    "explicit_no_live_lookup_overrides_make_graph_default": false,
     "source_fallback_order": []
   },
   "field_policy": {
@@ -1620,6 +1653,9 @@ Minimum candidate shape:
     "generated_code_loop_forbidden": true,
     "tool_output_artifact_policy_defined": true,
     "source_cache_persistence_defined": true,
+    "make_graph_live_lookup_default_defined": true,
+    "make_graph_not_supplied_source_authorization_forbidden": true,
+    "source_tool_approval_boundary_defined": true,
     "recoverable_leaf_failure_policy_defined": true,
     "semantic_child_loop_generation_defined": true,
     "recovery_cursor_state_defined": true,
@@ -1694,6 +1730,11 @@ The run contract is complete only if:
   is defined as `runs/<run_id>/reports/semantic_acceptance_report.md`;
 - if the request came through `MAKE-GRAPH`, the generated-bundle acceptance
   command is defined or a validation-unavailable stop has been logged;
+- if the request came through ordinary `MAKE-GRAPH`, the manifest records
+  `live_population_lookup_authorization: authorized_by_make_graph` unless the
+  invocation explicitly forbids live lookup or population;
+- if the request came through ordinary `MAKE-GRAPH`, the manifest must not
+  record `live_population_lookup_authorization: not_supplied_in_invocation`;
 - if the request came through `MAKE-GRAPH`, the accepted-record counting policy
   says that only source-backed, field-complete accepted semantic records count
   toward graph-build targets;
@@ -3936,6 +3977,10 @@ A generated protocol bundle is acceptable only if:
   dedicated generated file and is referenced by the manifest;
 - if `front_door_mode` is `MAKE-GRAPH`, the acceptance report says whether the
   generated bundle may be handed to the control protocol;
+- if `front_door_mode` is ordinary `MAKE-GRAPH`, the manifest must not record
+  `live_population_lookup_authorization: not_supplied_in_invocation` unless the
+  invocation explicitly says no_live_lookup, bundle_only, scaffold_only,
+  smoke_only, or no_population;
 - every ordered loop has a loop spec;
 - every loop spec defines iterator, write rule, evidence rule, completion rule,
   and stop conditions;
