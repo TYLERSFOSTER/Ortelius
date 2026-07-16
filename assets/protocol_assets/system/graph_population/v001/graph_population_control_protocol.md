@@ -2626,6 +2626,14 @@ ask for that approval and continue after approval. Do not convert absent tool
 approval into a graph-population blocker. If approval is denied, stop with a
 source-approval failure that names the denied capability.
 
+For ordinary `MAKE-GRAPH`, source-backed means backed by admissible persisted
+source evidence, not by a single privileged adapter. A generated bundle must
+not treat one public source family outage, throttle, timeout, malformed
+response, or shallow result as global source exhaustion while admissible source
+adapter candidates remain. Unless the human explicitly restricted sources,
+source adapter expansion is a normal Markdown recovery loop and does not
+require human approval merely because the next adapter is different.
+
 If the manifest explicitly says `no_live_lookup`, `bundle_only`,
 `scaffold_only`, `smoke_only`, or `no_population`, and no source batches are
 provided, source-backed population cannot proceed and the executor must stop
@@ -2645,6 +2653,10 @@ Before source lookup, identify:
 - disallowed sources;
 - source adapter ID;
 - fallback source adapter order;
+- source adapter expansion policy;
+- source adapter registry path;
+- source adapter candidate frontier path;
+- same-source-family exhaustion rule;
 - timeout, retry, and backoff policy;
 - batch size and batch runtime budget;
 - repo-local source batch cache path;
@@ -2656,9 +2668,14 @@ Before source lookup, identify:
 If any source boundary is missing, do not crawl. Stop with
 `missing_source_boundary`.
 
-If any source adapter, timeout, retry, fallback, or batch policy required by
-the loop is missing, do not crawl. Stop with
+If any source adapter, timeout, retry, fallback, adapter-expansion, or batch
+policy required by the loop is missing, do not crawl. Stop with
 `missing_source_execution_policy`.
+
+If an ordinary `MAKE-GRAPH` loop's fallback order contains only variants of one
+source family and lacks a source-adapter expansion policy/frontier, stop with
+`incomplete_source_adapter_expansion_policy` before treating that source family
+as exhaustive.
 
 If the loop has no repo-local source batch cache path, do not crawl. Stop with
 `missing_source_cache_path`.
@@ -2694,9 +2711,10 @@ When trouble occurs:
 
 ```text
 timeout -> retry_if_budget_remains -> fallback_if_declared -> recovery_child_loop_if_declared -> recovery_exhausted_stop
-rate_limited -> backoff_if_declared -> fallback_if_declared -> recovery_child_loop_if_declared -> recovery_exhausted_stop
-malformed_response -> retry_if_budget_remains -> fallback_if_declared -> recovery_child_loop_if_declared -> recovery_exhausted_stop
-insufficient_results -> persist_partial_success -> update_frontier -> source_strategy_recovery_child_loop_if_budget_remains -> recovery_exhausted_stop
+rate_limited -> backoff_if_declared -> fallback_if_declared -> source_adapter_expansion_child_loop_if_same_family_exhausted -> recovery_exhausted_stop
+malformed_response -> retry_if_budget_remains -> fallback_if_declared -> source_adapter_expansion_child_loop_if_same_family_exhausted -> recovery_exhausted_stop
+source_adapter_unavailable -> checkpoint -> source_adapter_expansion_child_loop_if_candidates_remain -> recovery_exhausted_stop
+insufficient_results -> persist_partial_success -> update_frontier -> source_strategy_or_adapter_expansion_child_loop_if_budget_remains -> recovery_exhausted_stop
 insufficient_depth_for_declared_fields -> persist_partial_success -> field_recovery_child_loop_if_budget_remains -> field_recovery_exhausted_stop
 insufficient_relation_family_diversity -> relation_recovery_child_loop_if_budget_remains -> relation_discovery_recovery_exhausted_stop
 insufficient_pair_evidence_for_edges -> edge_evidence_recovery_child_loop_if_budget_remains -> edge_evidence_recovery_exhausted_stop
@@ -2715,17 +2733,26 @@ pair-specific evidence are satisfied.
 
 If source lookup cannot yet support declared type fields, declared relation
 fields, source-backed instances, or pair-specific edge evidence, the executor
-must run the declared recovery ladder before stopping. Only after recovery is
-exhausted may it stop with the precise limitation. Do not fill target counts
-with deterministic local completion, placeholder values, source-adapter-only
-identity rows, endpoint pairings, or scaffold records unless the human
-explicitly requested scaffold or smoke mode.
+must run the declared recovery ladder before stopping. For ordinary
+`MAKE-GRAPH`, that ladder includes source-adapter expansion unless the human
+explicitly restricted sources or the adapter frontier is exhausted. Only after
+recovery is exhausted may it stop with the precise limitation. Do not fill
+target counts with deterministic local completion, placeholder values,
+source-adapter-only identity rows, endpoint pairings, or scaffold records unless
+the human explicitly requested scaffold or smoke mode.
 
 Failure and event codes:
 
 ```text
 source_batch_timeout
 source_rate_limited
+source_adapter_unavailable
+source_adapter_expansion_required
+source_adapter_expansion_started
+source_adapter_candidate_accepted
+source_adapter_candidate_rejected
+source_adapter_expansion_exhausted
+source_scope_user_restricted
 source_malformed_response
 source_fallback_used
 source_partial_success
@@ -2734,7 +2761,41 @@ source_depth_limited
 field_richness_limited
 edge_evidence_limited
 missing_source_execution_policy
+incomplete_source_adapter_expansion_policy
 ```
+
+### 15.2 Source Adapter Expansion Recovery
+
+For ordinary `MAKE-GRAPH`, a source adapter is a recoverable execution choice,
+not the definition of the domain. If one adapter family fails, the executor
+must ask whether admissible adapter candidates remain before marking the run
+blocked.
+
+The next legal action after same-family source failure is:
+
+```text
+1. checkpoint the failing batch;
+2. persist any partial source cache and Markdown report;
+3. update cursor.active_recovery with source_adapter_expansion_required;
+4. create or update runs/<run_id>/source_adapter_candidate_frontier.md;
+5. create or update a Markdown batch packet for adapter evaluation;
+6. evaluate the next admissible adapter candidate;
+7. persist its probe result under runs/<run_id>/source_batches/;
+8. resume the parent source loop if the adapter satisfies the evidence shape.
+```
+
+A new adapter candidate may be accepted without Project Owner approval when it
+is public, legal to access under ordinary live lookup, inside the user-provided
+or generated source scope, and can be persisted/reported through the run
+artifact tree. Human approval is required only for credentialed, paid,
+private/personal, terms-of-service-sensitive, or explicitly out-of-scope
+sources.
+
+The executor may stop with `source_strategy_recovery_exhausted` or
+`source_depth_limited` only when the adapter frontier has been exhausted,
+source scope was explicitly restricted by the human, or every remaining adapter
+candidate requires approval that has been denied or cannot be requested in the
+current run.
 
 ### 15.2 Markdown Batch Execution Discipline
 

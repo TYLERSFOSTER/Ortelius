@@ -1203,6 +1203,8 @@ Recoverable semantic failures include:
 ```text
 insufficient_results
 source_rate_limited
+source_adapter_unavailable
+source_adapter_expansion_required
 source_depth_limited
 field_richness_limited
 relation_family_diversity_unmet
@@ -1225,6 +1227,8 @@ narrow_query
 broaden_query
 switch_source_adapter
 switch_source_class
+discover_new_source_adapter
+evaluate_source_adapter_candidate
 seed_from_authoritative_index
 extract_seed_list
 split_current_type_or_edge_work_into_batches
@@ -1240,9 +1244,15 @@ directory. Recovery may not be hidden in Python, shell scripts, notebooks,
 model memory, terminal history, or temporary files.
 
 A recovery ladder is exhausted only when the generated attempt budget, source
-fallback order, query rewrite policy, source-class expansion policy, and
-frontier expansion policy have all been tried or explicitly ruled out. Only
-then may the run stop with a recovery-exhausted limitation such as:
+fallback order, query rewrite policy, source-adapter expansion policy,
+source-class expansion policy, and frontier expansion policy have all been
+tried or explicitly ruled out. For ordinary `MAKE-GRAPH`, an outage, timeout,
+malformed response, rate limit, sparse result, or depth limit in one source
+adapter or one source family does not exhaust recovery. It must route to the
+explicit Markdown source-adapter expansion child loop unless the human
+explicitly restricted the source scope or all admissible source-adapter
+candidates have already been evaluated and rejected in repo-local reports.
+Only then may the run stop with a recovery-exhausted limitation such as:
 
 ```text
 source_strategy_recovery_exhausted
@@ -1914,7 +1924,12 @@ Minimum candidate shape:
     "live_population_lookup_authorization": "authorized_by_make_graph",
     "population_without_live_or_supplied_sources": "not_applicable_live_lookup_authorized",
     "explicit_no_live_lookup_overrides_make_graph_default": false,
-    "source_fallback_order": []
+    "source_fallback_order": [],
+    "source_adapter_registry_path": "runs/run_001/source_adapter_registry.md",
+    "source_adapter_candidate_frontier_path": "runs/run_001/source_adapter_candidate_frontier.md",
+    "source_adapter_expansion_allowed_by_default": true,
+    "source_adapter_expansion_requires_human_approval": false,
+    "same_source_family_exhaustion_rule": "do_not_treat_one_source_family_failure_as_global_source_exhaustion"
   },
   "field_policy": {
     "field_tier_contract_defined": true,
@@ -2340,6 +2355,83 @@ stop_with_source_failure
 ```
 
 The executor must not invent this policy during the run.
+
+### 7.1.1 Domain-Discovered Source Adapter Expansion Contract
+
+For ordinary `MAKE-GRAPH`, source-backed means backed by admissible persisted
+source evidence. It does not mean backed by one privileged source adapter.
+Wikidata, a public API, a search result page, an official organization page, an
+authority file, a catalog, a repository, or another public source family can be
+an adapter if the generated protocol records how it is queried, filtered,
+persisted, and interpreted through Markdown reports.
+
+Unless the human explicitly restricts sources, source adapter expansion is an
+internal generated recovery loop. It does not require human approval merely
+because the next adapter is different from the first adapter. Human approval is
+required only when the candidate adapter needs credentials, payment, private or
+personal data access, terms-of-service-sensitive scraping, a non-public source,
+or a source family outside an explicit user-provided source scope.
+
+Every ordinary `MAKE-GRAPH` bundle must define a source adapter registry and an
+adapter expansion frontier:
+
+```text
+source_adapter_registry_path:
+source_adapter_candidate_frontier_path:
+source_adapter_expansion_policy:
+source_adapter_expansion_allowed_by_default: true
+source_adapter_expansion_requires_human_approval: false unless credentialed/private/restricted
+source_scope_restriction_rule:
+adapter_candidate_evaluation_criteria:
+same_source_family_exhaustion_rule:
+```
+
+A source fallback order that contains only variants of one source family, such
+as two endpoints for the same public database, is not a complete recovery
+policy for ordinary `MAKE-GRAPH`. It is only the first adapter-family retry
+plan. If that source family rate-limits, times out, malforms responses, or is
+too shallow, the next legal recovery action is to create or advance a Markdown
+source-adapter expansion child loop.
+
+The generated source-adapter expansion loop must be domain-agnostic in shape
+and domain-specific only in its discovered candidates. It may consider source
+families such as:
+
+```text
+official domain or institution pages
+public APIs
+public catalogs or collection databases
+authority files or controlled vocabularies
+public indexes or registries
+entity pages from the current source family
+source pages cited by already accepted records
+search/discovery results that lead to persisted source batches
+human-supplied source files or URLs
+```
+
+Before a new adapter can affect graph JSON, the generated Markdown child loop
+must record:
+
+```text
+adapter_candidate_id:
+source_family:
+why_relevant_to_current_domain:
+allowed_query_or_navigation_shapes:
+evidence_shape:
+expected_record_types:
+coverage_probe_plan:
+rate_limit_or_timeout_policy:
+persistence_plan_under_runs/<run_id>/source_batches:
+markdown_report_path:
+accept_reject_defer_decision:
+reason:
+```
+
+If one adapter fails but admissible adapter candidates remain unevaluated, the
+run must not stop with `source_depth_limited`, `source_rate_limited`, or
+`source_strategy_recovery_exhausted`. It must stop only the current batch,
+checkpoint state, create/update the source-adapter expansion child loop, and
+continue there when execution budget permits.
 
 ## 7.2 Markdown Batch Partition Contract
 
@@ -3975,6 +4067,11 @@ child_loop_generation_rule:
 recovery_attempt_budget:
 source_strategy_fallback_order:
 query_rewrite_policy:
+source_adapter_expansion_policy:
+source_adapter_registry_path:
+source_adapter_candidate_frontier_path:
+source_adapter_candidate_evaluation_criteria:
+same_source_family_exhaustion_rule:
 source_class_expansion_policy:
 frontier_expansion_policy:
 resume_parent_condition:
@@ -4000,6 +4097,9 @@ max_sources_checked:
 evidence_threshold:
 source_adapter_id:
 source_fallback_order:
+source_adapter_expansion_policy:
+source_adapter_registry_path:
+source_adapter_candidate_frontier_path:
 timeout_seconds:
 max_retries:
 backoff_seconds:
@@ -4132,6 +4232,7 @@ pair_evidence_review_rule: edge instances need exact source-relation-target evid
 counter_reconciliation_rule: accepted counters must match graph_build_target using accepted primitive families
 status_rule: only exact semantic_acceptance_status: passed completes the run
 generated_script_rejection_rule: generated population scripts are forbidden workflow drivers
+source_adapter_expansion_rule: one adapter-family failure routes to Markdown adapter expansion, not global source failure
 recovery_rule: if recoverable gaps remain, create/update Markdown child loops and continue
 ```
 
@@ -4234,6 +4335,7 @@ Compatibility requires:
 - path reconciliation fields;
 - source crawl boundaries;
 - source adapter fallback policy;
+- source adapter expansion policy and adapter candidate frontier for ordinary `MAKE-GRAPH`;
 - recoverable semantic failure policy;
 - child-loop generation policy for source, field, relation, instance, and edge-evidence recovery;
 - batch execution policy;
@@ -4483,7 +4585,8 @@ A generated protocol bundle is acceptable only if:
 - every semantic loop spec defines a recovery ladder, child-loop generation rule, recovery budget, resume condition, exhaustion condition, and proxy-substitution ban;
 - every loop spec defines source boundaries;
 - every source-crawling loop defines source adapters, fallback behavior,
-  timeout/retry behavior, semantic recovery behavior, and batch execution;
+  source-adapter expansion behavior, timeout/retry behavior, semantic recovery
+  behavior, and batch execution;
 - every batch-capable loop defines
   `batch_execution_meaning: markdown_batch_partition_not_generated_code_loop`;
 - every batch-capable loop defines `batch_plan_path` and
