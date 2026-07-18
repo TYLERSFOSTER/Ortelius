@@ -41,6 +41,84 @@ REQUIRED_BUNDLE_MANIFEST_FIELDS = (
     "run_contract_completeness",
 )
 
+MAKE_GRAPH_REQUIRED_ARTIFACT_TEMPLATES = (
+    "control_loop_plan.md",
+    "runs/<run_id>/reports/generated_bundle_acceptance_report.md",
+    "runs/<run_id>/reports/source_landscape_map.md",
+    "runs/<run_id>/reports/source_family_registry.md",
+    "runs/<run_id>/source_adapter_candidate_frontier.md",
+    "runs/<run_id>/reports/source_strategy_decision_log.md",
+    "runs/<run_id>/reports/joint_population_feasibility_plan.md",
+    "runs/<run_id>/reports/endpoint_reservation_plan.md",
+    "runs/<run_id>/reports/semantic_acceptance_report.md",
+)
+
+SEMANTIC_ACCEPTANCE_REQUIRED_TABLES = (
+    "Type Node Semantic Review Table",
+    "Type Edge Semantic Review Table",
+    "Primitive Relation Family Summary",
+    "Endpoint Variant / Inverse Group Table",
+    "Fiber Node Batch Review Table",
+    "Fiber Edge Batch Review Table",
+    "Field Richness Review Table",
+    "Source Landscape Review Table",
+    "Domain Membership Review Table",
+    "Joint Population Feasibility Table",
+    "Endpoint Reservation Review Table",
+    "Generated Code Runtime Audit Table",
+    "Counter Reconciliation Table",
+    "Final Decision",
+)
+
+BATCH_PACKET_REQUIRED_TERMS = (
+    "parent_loop_id",
+    "batch_goal",
+    "ordered_item_list",
+    "acceptance_criteria",
+    "rejection_criteria",
+    "write_targets",
+    "cursor_update_rule",
+    "resume_point",
+)
+
+BATCH_PACKET_PLACEHOLDER_MARKERS = (
+    "status: see execution log and reports",
+    "see execution log and reports",
+    "see generated output",
+    "see report",
+)
+
+SOURCE_OR_IDENTITY_FIELD_NAMES = frozenset(
+    {
+        "id",
+        "name",
+        "label",
+        "title",
+        "description",
+        "source",
+        "sources",
+        "source_url",
+        "source_urls",
+        "source_scope",
+        "source_category",
+        "source_class",
+        "source_adapter",
+        "source_adapter_id",
+        "source_endpoint",
+        "source_record",
+        "wikidata_qid",
+        "wikidata_url",
+        "external_id",
+        "external_url",
+        "type_membership_basis",
+        "domain_note",
+        "coordinate",
+        "coordinates",
+        "latitude",
+        "longitude",
+    }
+)
+
 
 @dataclass(frozen=True)
 class ProtocolAssetIssue:
@@ -138,6 +216,18 @@ def validate_system_protocol_assets(system_root: str | Path) -> ProtocolAssetRep
             issues,
             "missing_graph_tool_compatibility_section",
         )
+        _require_text(
+            protocol_schema,
+            "Source Landscape, Domain Membership, And Joint Planning Directive",
+            issues,
+            "missing_source_landscape_contract",
+        )
+        _require_text(
+            protocol_schema,
+            "joint_population_feasibility_gate",
+            issues,
+            "missing_joint_population_contract",
+        )
     if control_protocol is not None:
         _require_text(control_protocol, "EXECUTE-BUNDLE", issues, "missing_trigger_phrase")
         _require_text(
@@ -145,6 +235,18 @@ def validate_system_protocol_assets(system_root: str | Path) -> ProtocolAssetRep
             "Graph Tool Compatibility Gates",
             issues,
             "missing_graph_tool_compatibility_section",
+        )
+        _require_text(
+            control_protocol,
+            "Source Landscape And Joint Population Gates",
+            issues,
+            "missing_source_landscape_contract",
+        )
+        _require_text(
+            control_protocol,
+            "Markdown-Controlled Runtime Boundary",
+            issues,
+            "missing_markdown_runtime_boundary",
         )
     if generate_prompt is not None:
         _require_text(generate_prompt, "GENERATE-BUNDLE", issues, "missing_trigger_phrase")
@@ -212,6 +314,7 @@ def validate_protocol_bundle(protocol_root: str | Path) -> ProtocolAssetReport:
 
     _validate_cursor_and_log(root, manifest, issues)
     _validate_graph_contract(root, manifest, issues)
+    _validate_make_graph_semantic_contract(root, manifest, issues)
 
     return ProtocolAssetReport(tuple(issues))
 
@@ -425,6 +528,377 @@ def _validate_graph_contract(
     if not graph_report.ok:
         summary = ", ".join(issue.code for issue in graph_report.issues[:5])
         _add(issues, "error", "validation_failed", summary, graph_root)
+
+
+def _validate_make_graph_semantic_contract(
+    root: Path,
+    manifest: dict[str, Any],
+    issues: list[ProtocolAssetIssue],
+) -> None:
+    if not _is_make_graph_manifest(manifest):
+        return
+
+    run_id = _default_run_id(manifest)
+    if not run_id:
+        _add(
+            issues,
+            "error",
+            "missing_bundle_file",
+            "MAKE-GRAPH manifest must define runs.default_run_id.",
+            root / "manifest.json",
+        )
+        return
+
+    for template in MAKE_GRAPH_REQUIRED_ARTIFACT_TEMPLATES:
+        _require_file(
+            root / template.replace("<run_id>", run_id),
+            issues,
+            "missing_make_graph_artifact",
+        )
+
+    semantic_report_path = root / f"runs/{run_id}/reports/semantic_acceptance_report.md"
+    semantic_report = _read_text_or_empty(semantic_report_path)
+    if semantic_report:
+        _validate_semantic_acceptance_report(semantic_report_path, semantic_report, issues)
+
+    _validate_source_family_surface(root, run_id, manifest, issues)
+    _validate_batch_packet_surfaces(root, run_id, manifest, issues)
+    _validate_make_graph_record_semantics(root, manifest, issues)
+
+
+def _is_make_graph_manifest(manifest: dict[str, Any]) -> bool:
+    graph_build_target = _dict_value(manifest.get("graph_build_target"))
+    return (
+        manifest.get("front_door_mode") == "MAKE-GRAPH"
+        or graph_build_target.get("mode") == "MAKE-GRAPH"
+        or graph_build_target.get("front_door_mode") == "MAKE-GRAPH"
+        or graph_build_target.get("completion_target") == "graph_build_targets_met"
+    )
+
+
+def _default_run_id(manifest: dict[str, Any]) -> str:
+    return _str_value(_dict_value(manifest.get("runs")).get("default_run_id"))
+
+
+def _validate_semantic_acceptance_report(
+    path: Path,
+    text: str,
+    issues: list[ProtocolAssetIssue],
+) -> None:
+    for table in SEMANTIC_ACCEPTANCE_REQUIRED_TABLES:
+        if table not in text:
+            _add(
+                issues,
+                "error",
+                "semantic_acceptance_report_incomplete",
+                f"Semantic acceptance report is missing {table!r}.",
+                path,
+            )
+
+    if "accepted_field_complete_fiber_nodes" in text and "domain_field_complete" not in text:
+        _add(
+            issues,
+            "error",
+            "semantic_acceptance_report_incomplete",
+            "Semantic acceptance report claims field-complete fiber nodes without "
+            "distinguishing domain_field_complete from identity scaffold state.",
+            path,
+        )
+
+
+def _validate_source_family_surface(
+    root: Path,
+    run_id: str,
+    manifest: dict[str, Any],
+    issues: list[ProtocolAssetIssue],
+) -> None:
+    registry_path = root / f"runs/{run_id}/reports/source_family_registry.md"
+    landscape_path = root / f"runs/{run_id}/reports/source_landscape_map.md"
+    decision_path = root / f"runs/{run_id}/reports/source_strategy_decision_log.md"
+    combined = "\n".join(
+        _read_text_or_empty(path) for path in (registry_path, landscape_path, decision_path)
+    )
+    if not combined.strip():
+        return
+
+    required_terms = ("source_family", "source_adapter", "source_endpoint", "source_record")
+    for term in required_terms:
+        if term not in combined:
+            _add(
+                issues,
+                "error",
+                "source_landscape_incomplete",
+                f"Source landscape artifacts must distinguish {term}.",
+                landscape_path,
+            )
+
+    if _graph_has_target_scale_records(root, manifest):
+        families = _extract_source_families(combined)
+        has_exception = "single_authoritative_source_family_exception" in combined
+        if len(families) < 2 and not has_exception:
+            _add(
+                issues,
+                "error",
+                "source_family_monoculture",
+                "Target-scale MAKE-GRAPH records require at least two source "
+                "families or a logged single_authoritative_source_family_exception.",
+                registry_path,
+            )
+
+
+def _extract_source_families(text: str) -> set[str]:
+    families: set[str] = set()
+    for line in text.splitlines():
+        if ":" not in line:
+            continue
+        key, value = line.split(":", 1)
+        if key.strip().lower() not in {"source_family", "source family"}:
+            continue
+        cleaned = value.strip().strip("`* -").lower()
+        if cleaned:
+            families.add(cleaned)
+    return families
+
+
+def _validate_batch_packet_surfaces(
+    root: Path,
+    run_id: str,
+    manifest: dict[str, Any],
+    issues: list[ProtocolAssetIssue],
+) -> None:
+    packet_root = root / f"runs/{run_id}/batch_packets"
+    if not packet_root.exists():
+        if _graph_has_target_scale_records(root, manifest):
+            _add(
+                issues,
+                "error",
+                "missing_batch_packet",
+                "MAKE-GRAPH target-scale records require Markdown batch packets.",
+                packet_root,
+            )
+        return
+
+    packets = sorted(packet_root.glob("*.md"))
+    if not packets and _graph_has_target_scale_records(root, manifest):
+        _add(
+            issues,
+            "error",
+            "missing_batch_packet",
+            "MAKE-GRAPH target-scale records require Markdown batch packets.",
+            packet_root,
+        )
+        return
+
+    for packet in packets:
+        text = packet.read_text(encoding="utf-8")
+        lowered = text.lower()
+        if any(marker in lowered for marker in BATCH_PACKET_PLACEHOLDER_MARKERS):
+            _add(
+                issues,
+                "error",
+                "placeholder_batch_packet",
+                "Batch packet is a placeholder instead of a nested Markdown work program.",
+                packet,
+            )
+        missing_terms = [term for term in BATCH_PACKET_REQUIRED_TERMS if term not in text]
+        if missing_terms:
+            _add(
+                issues,
+                "error",
+                "incomplete_batch_packet",
+                f"Batch packet is missing required terms: {', '.join(missing_terms)}.",
+                packet,
+            )
+
+
+def _validate_make_graph_record_semantics(
+    root: Path,
+    manifest: dict[str, Any],
+    issues: list[ProtocolAssetIssue],
+) -> None:
+    graphs = _dict_value(manifest.get("graphs"))
+    graph_root = root / _str_value(graphs.get("candidate_graph_root"))
+    type_graph_id = _str_value(graphs.get("type_graph_id"))
+    fiber_graph_id = _str_value(graphs.get("fiber_graph_id"))
+    if not graph_root or not type_graph_id or not fiber_graph_id:
+        return
+
+    try:
+        bundle = load_graph_bundle(
+            graph_root,
+            type_graph_id=type_graph_id,
+            fiber_graph_id=fiber_graph_id,
+        )
+    except GraphLoadError:
+        return
+
+    for record in bundle.type_node_records:
+        raw = record.raw
+        if record.status not in {"accepted", "candidate", "reviewed"}:
+            continue
+        if not isinstance(raw.get("fiber_population_eligible"), bool):
+            _add(
+                issues,
+                "error",
+                "missing_fiber_population_eligibility",
+                "MAKE-GRAPH type nodes must explicitly set fiber_population_eligible.",
+                graph_root,
+            )
+            break
+
+    accepted_or_eligible_type_nodes = [
+        record
+        for record in bundle.type_node_records
+        if record.status == "accepted" or record.raw.get("fiber_population_eligible") is True
+    ]
+    for record in accepted_or_eligible_type_nodes:
+        raw = record.raw
+        for key in (
+            "type_membership_predicate",
+            "domain_membership_predicate",
+            "domain_exclusion_predicate",
+        ):
+            if not _contains_key(raw, key):
+                _add(
+                    issues,
+                    "error",
+                    "missing_domain_membership_policy",
+                    f"Type node {record.id or '<unknown>'} is missing {key}.",
+                    graph_root,
+                )
+                break
+        domain_field_count = _domain_descriptive_field_count(raw)
+        if domain_field_count < 3:
+            _add(
+                issues,
+                "error",
+                "type_field_richness_incomplete",
+                f"Type node {record.id or '<unknown>'} has fewer than three "
+                "domain_descriptive_field entries.",
+                graph_root,
+            )
+
+    if bundle.fiber_node_records:
+        for record in bundle.fiber_node_records:
+            raw = record.raw
+            if record.status != "accepted":
+                continue
+            if not _contains_key(raw, "domain_membership_basis") and not _contains_key(
+                raw, "domain_membership_evidence"
+            ):
+                _add(
+                    issues,
+                    "error",
+                    "fiber_node_domain_membership_missing",
+                    "Accepted MAKE-GRAPH fiber nodes must record domain-membership evidence, "
+                    "not only source/type membership.",
+                    graph_root,
+                )
+                break
+
+    expected_edges = _expected_edge_instances(manifest)
+    if expected_edges > 0:
+        for record in bundle.type_edge_records:
+            if record.status != "accepted":
+                continue
+            if not _contains_key(record.raw, "pair_evidence_feasibility_status"):
+                _add(
+                    issues,
+                    "error",
+                    "edge_feasibility_missing",
+                    f"Type edge {record.id or '<unknown>'} is missing "
+                    "pair_evidence_feasibility_status for edge-target planning.",
+                    graph_root,
+                )
+                break
+
+
+def _graph_has_target_scale_records(root: Path, manifest: dict[str, Any]) -> bool:
+    graphs = _dict_value(manifest.get("graphs"))
+    graph_root = root / _str_value(graphs.get("candidate_graph_root"))
+    type_graph_id = _str_value(graphs.get("type_graph_id"))
+    fiber_graph_id = _str_value(graphs.get("fiber_graph_id"))
+    if not graph_root or not type_graph_id or not fiber_graph_id:
+        return False
+    try:
+        bundle = load_graph_bundle(
+            graph_root,
+            type_graph_id=type_graph_id,
+            fiber_graph_id=fiber_graph_id,
+        )
+    except GraphLoadError:
+        return False
+    return bool(
+        bundle.type_node_records
+        or bundle.type_edge_records
+        or bundle.fiber_node_records
+        or bundle.fiber_edge_records
+    )
+
+
+def _expected_edge_instances(manifest: dict[str, Any]) -> int:
+    graph_build_target = _dict_value(manifest.get("graph_build_target"))
+    fiber_targets = _dict_value(graph_build_target.get("fiber_graph_targets"))
+    for key in ("expected_edge_instances", "edge_instance_count"):
+        value = fiber_targets.get(key)
+        if isinstance(value, int):
+            return value
+    instances_per_edge_type = fiber_targets.get("instances_per_edge_type")
+    edge_targets = _dict_value(graph_build_target.get("type_graph_targets"))
+    edge_type_count = edge_targets.get("edge_type_count")
+    if isinstance(instances_per_edge_type, int) and isinstance(edge_type_count, int):
+        return instances_per_edge_type * edge_type_count
+    return 0
+
+
+def _record_status(record: dict[str, Any]) -> str:
+    return _str_value(record.get("status"))
+
+
+def _domain_descriptive_field_count(record: dict[str, Any]) -> int:
+    fields = _type_field_mapping(record)
+    count = 0
+    for name, metadata in fields.items():
+        if name in SOURCE_OR_IDENTITY_FIELD_NAMES:
+            continue
+        if isinstance(metadata, dict) and metadata.get("field_tier") == "domain_descriptive_field":
+            count += 1
+    return count
+
+
+def _type_field_mapping(record: dict[str, Any]) -> dict[str, Any]:
+    type_fields = record.get("type_fields")
+    if isinstance(type_fields, dict):
+        nested = type_fields.get("fields")
+        if isinstance(nested, dict):
+            return nested
+        return type_fields
+    if isinstance(type_fields, list):
+        result: dict[str, Any] = {}
+        for item in type_fields:
+            if not isinstance(item, dict):
+                continue
+            name = _str_value(item.get("name")) or _str_value(item.get("field_id"))
+            if name:
+                result[name] = item
+        return result
+    return {}
+
+
+def _contains_key(value: Any, key: str) -> bool:
+    if isinstance(value, dict):
+        if key in value:
+            return True
+        return any(_contains_key(child, key) for child in value.values())
+    if isinstance(value, list):
+        return any(_contains_key(child, key) for child in value)
+    return False
+
+
+def _read_text_or_empty(path: Path) -> str:
+    if not path.exists() or not path.is_file():
+        return ""
+    return path.read_text(encoding="utf-8")
 
 
 def _read_json_object(

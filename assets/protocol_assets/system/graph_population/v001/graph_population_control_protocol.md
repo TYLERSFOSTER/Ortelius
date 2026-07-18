@@ -54,7 +54,9 @@ flowchart TD
   C4 --> C5["Write loop_specs/*.md"]
   C5 --> C6["Initialize candidate graph JSON files"]
   C6 --> C7["Initialize run artifacts: structured cursor, initialized execution_log, source_batch_plan, reports, source_batches, batch_packets, tool_outputs"]
-  C7 --> C8["Run generated-bundle acceptance checks"]
+  C7 --> C7A["MAKE-GRAPH: initialize source landscape map, source family registry, adapter frontier, and source strategy log"]
+  C7A --> C7B["MAKE-GRAPH: initialize joint population feasibility and endpoint reservation plans"]
+  C7B --> C8["Run generated-bundle acceptance checks"]
   C8 --> C9["Write runs/<run_id>/reports/generated_bundle_acceptance_report.md"]
 
   C9 -->|"generated_bundle_acceptance: failed or validation_unavailable_stop"| S["Stop with structured failure"]
@@ -66,7 +68,9 @@ flowchart TD
   E2 --> E3["Verify run_contract_completeness"]
   E3 -->|"incomplete"| S
   E3 --> E4["Reconcile graph paths and inspect current graph JSON state"]
-  E4 --> E5["Derive next legal bounded action from manifest order, loop spec, cursor, log, and repo reality"]
+  E4 --> E4A{"MAKE-GRAPH source landscape and joint population control surfaces valid?"}
+  E4A -->|"no"| S
+  E4A -->|"yes"| E5["Derive next legal bounded action from manifest order, loop spec, cursor, log, and repo reality"]
   E5 --> E6["Execute one Markdown-authorized action"]
   E6 --> E7["Persist source batches, Markdown reports, graph JSON changes, or tool output logs"]
   E7 --> E8["Validate affected state"]
@@ -258,6 +262,11 @@ Endpoint Variant / Inverse Group Table
 Fiber Node Batch Review Table
 Fiber Edge Batch Review Table
 Field Richness Review Table
+Source Landscape Review Table
+Domain Membership Review Table
+Joint Population Feasibility Table
+Endpoint Reservation Review Table
+Generated Code Runtime Audit Table
 Counter Reconciliation Table
 Final Decision
 ```
@@ -421,6 +430,134 @@ single identical generic field set reused across every type is not field
 richness. If this happens, the final gate must set
 `semantic_acceptance_status: field_richness_limited` or continue into the
 field-enrichment Markdown child loop when recovery remains.
+
+
+
+### 0.0.2.2 Source Landscape, Domain Membership, And Joint Planning Directive
+
+For ordinary `MAKE-GRAPH`, Codex must not move directly from a queryable source
+adapter to graph population. The generated workflow must first separate three
+phases:
+
+```text
+source_landscape_discovery
+source_adapter_selection
+source_exploitation
+```
+
+Source landscape discovery is semantic research over the available source
+ecology. It asks which source families exist for the domain, what evidence
+shapes they can provide, which graph loops they can support, and where they are
+shallow or biased. Source adapter selection chooses concrete access paths for
+those families. Source exploitation pulls records or evidence only after the
+source landscape has shaped the type, field, edge, and population plans.
+
+The generated bundle must distinguish:
+
+```text
+source_family: the information family or institution class, such as a public
+  authority file, institution collection API, standards vocabulary, official
+  directory, catalog, archive, registry, or broad public knowledge base
+source_adapter: the concrete access method for a source family, such as a
+  SPARQL endpoint, mirror, public API, search page, catalog page, downloaded
+  file, or human-supplied source list
+source_endpoint: the exact URL, API endpoint, query surface, local source file,
+  or navigation target
+source_record: the retrieved item, row, page, claim, catalog record, source
+  excerpt, or evidence object used by a bounded action
+```
+
+Multiple adapters or endpoints for one source family do not create source
+landscape diversity. For example, an official Wikidata endpoint, a Wikidata
+mirror, and a Wikidata entity page are different adapters/endpoints for the
+same source family. Switching between them is adapter recovery, not source
+landscape recovery.
+
+Before target-scale type, field, instance, edge, or edge-instance population,
+every ordinary `MAKE-GRAPH` bundle must create and maintain these run artifacts:
+
+```text
+runs/<run_id>/reports/source_landscape_map.md
+runs/<run_id>/reports/source_family_registry.md
+runs/<run_id>/source_adapter_candidate_frontier.md
+runs/<run_id>/reports/source_strategy_decision_log.md
+runs/<run_id>/reports/joint_population_feasibility_plan.md
+runs/<run_id>/reports/endpoint_reservation_plan.md
+```
+
+The source landscape artifacts are not optional decorations. They are the
+control surface that keeps Codex in exploratory source-discovery mode before it
+operationalizes record extraction. If they are missing, empty, or replaced by
+one source adapter family, the run must stop with
+`source_landscape_missing`, `source_family_monoculture`, or
+`source_strategy_decision_log_missing` before target-scale population.
+
+The generated workflow must also separate type membership from domain
+membership. A source row may prove that an entity belongs to a broad source
+class without proving that it belongs in the requested domain graph. Every
+ordinary population-eligible type must define:
+
+```text
+type_membership_predicate:
+domain_membership_predicate:
+domain_exclusion_predicate:
+domain_membership_evidence_required:
+```
+
+A fiber node counts toward accepted graph targets only when both the type
+membership predicate and the domain membership predicate are satisfied by
+persisted source evidence. A source query result, source category, occupation,
+classification class, or adapter row is not sufficient by itself.
+
+For edge-heavy graph targets, node and edge population must be planned jointly.
+The bundle must not freeze all node buckets first and then discover that the
+frozen endpoints cannot support requested edge counts. Before target-scale
+fiber-node writes, the generated workflow must run a joint feasibility plan:
+
+```text
+1. discover candidate edge pairs and relation evidence;
+2. reserve endpoints needed for requested edge targets;
+3. populate node buckets around reserved endpoints;
+4. backfill remaining node slots only after edge feasibility is preserved;
+5. write graph JSON only from Markdown-authorized batch rows.
+```
+
+Endpoint-cap conflict is recoverable, not automatically terminal. If exact node
+bucket caps conflict with pair-evidenced edge targets, the next legal action is
+an explicit Markdown repair child loop such as:
+
+```text
+JointPopulation.Repair.EndpointReservation
+```
+
+That loop may reselect endpoint nodes from edge evidence, change the sampling
+strategy, replace weak edge families, replace weak node types, add admissible
+source families, split an overbroad type, narrow domain predicates, or write a
+precise blocker only after those repairs are exhausted.
+
+
+### 0.0.2.3 Markdown-Controlled Runtime Boundary
+
+For ordinary `MAKE-GRAPH`, the generated Markdown/JSON artifacts are the
+workflow runtime. Generated Python, shell scripts, notebooks, SQL files, or
+other helper programs must not perform graph-building traversal, source-landscape
+selection, type selection, relation selection, population selection, semantic
+acceptance, cursor advancement, or graph JSON writes.
+
+Allowed code use is limited to read-only or mechanical repository tools:
+
+```text
+validate graph JSON
+inspect graph counts
+materialize NetworkX/PyG/DGL graphs
+run tests or linters
+perform read-only consistency checks that report back into Markdown
+```
+
+If Codex is tempted to write a generator script to loop over sources, records,
+edge candidates, or graph writes, the generated bundle is missing a Markdown
+loop, batch packet, frontier, or report. The next legal action is to create or
+repair that Markdown control surface, not to hide the loop in code.
 
 ### 0.0.3 Invocation Dispatch
 
@@ -2616,6 +2753,40 @@ review.state: needs_review
 
 over unsupported `accepted` records.
 
+## 14.5 Source Landscape And Joint Population Gates
+
+Before target-scale population in ordinary `MAKE-GRAPH`, verify the generated
+source landscape and joint population artifacts:
+
+```text
+runs/<run_id>/reports/source_landscape_map.md
+runs/<run_id>/reports/source_family_registry.md
+runs/<run_id>/source_adapter_candidate_frontier.md
+runs/<run_id>/reports/source_strategy_decision_log.md
+runs/<run_id>/reports/joint_population_feasibility_plan.md
+runs/<run_id>/reports/endpoint_reservation_plan.md
+```
+
+The source landscape map must distinguish source families from adapters,
+endpoints, and records. Multiple endpoints or mirrors of one public knowledge
+base count as one source family. If all semantic work depends on one source
+family and no `single_authoritative_source_family_exception` is logged, stop
+with `source_family_monoculture` before accepting target-scale semantic
+completion.
+
+Every population-eligible type must have explicit type-membership,
+domain-membership, and domain-exclusion predicates. If a node record is backed
+only by broad source-class membership, source query membership, or source
+adapter identity, it remains candidate or identity-scaffold state. It must not
+count as an accepted domain fiber node.
+
+The joint population feasibility plan must exist before target-scale fiber-node
+writes. When edge targets are nonzero, endpoint reservation must guide node
+selection before backfill. If frozen node caps prevent pair-evidenced edge
+targets, enter the generated `JointPopulation.Repair.EndpointReservation`
+child loop instead of stopping immediately. Stop only after repair attempts are
+exhausted and logged.
+
 ## 15. Source-Crawl Discipline
 
 Source crawling is always bounded by the current loop spec.
@@ -2840,9 +3011,18 @@ If `batch_execution_meaning` is not
 Before executing the batch, verify that `batch_markdown_packet_path` exists or
 create it as the next legal Markdown expansion action. If the path is declared
 but the packet is absent and cannot be created without guessing, stop with
-`missing_batch_packet`. The packet must name:
+`missing_batch_packet`. The packet must be a real nested Markdown work program, not a pointer to some other report. It must name:
 
 ```text
+parent_loop_id
+batch_goal
+ordered_item_list
+acceptance_criteria
+rejection_criteria
+per_item_status_table
+write_targets
+cursor_update_rule
+resume_point
 active_loop_path
 batch_id
 current_loop_item
@@ -2863,6 +3043,12 @@ or running code to traverse the batch. Source lookup may use available
 source-access tools or human-provided source material, but candidate selection,
 dedupe decisions, graph-write authorization, cursor advancement, and frontier
 updates must remain in Markdown/log/cursor state.
+
+A packet is invalid if its meaningful content is only a status pointer such as
+`status: see execution log and reports`, `see report`, `see generated output`,
+or an equivalent placeholder. If a placeholder packet is encountered, stop with
+`placeholder_batch_packet` and repair the packet before executing or accepting
+that loop.
 
 After each batch:
 

@@ -20,6 +20,13 @@ Runtime prompts should point to this directory.
 These files are not a generated domain bundle. They are the stable system
 protocols that generated bundles reference.
 
+For ordinary `MAKE-GRAPH`, generated bundles must include explicit Markdown
+source-landscape, source-family, source-adapter-frontier, joint-population,
+endpoint-reservation, batch-packet, and semantic-acceptance artifacts. Python
+and graph tooling may validate, inspect, materialize, and test graph JSON, but
+must not become the hidden workflow runtime that selects sources, types,
+relations, records, or accepted semantic targets.
+
 Generated bundles should live under:
 
 ```text

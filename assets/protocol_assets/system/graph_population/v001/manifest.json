@@ -54,6 +54,26 @@
       "Completion Rule",
       "Stop Conditions",
       "Handoff"
+    ],
+    "required_make_graph_artifacts": [
+      "control_loop_plan.md",
+      "runs/<run_id>/reports/generated_bundle_acceptance_report.md",
+      "runs/<run_id>/reports/source_landscape_map.md",
+      "runs/<run_id>/reports/source_family_registry.md",
+      "runs/<run_id>/source_adapter_candidate_frontier.md",
+      "runs/<run_id>/reports/source_strategy_decision_log.md",
+      "runs/<run_id>/reports/joint_population_feasibility_plan.md",
+      "runs/<run_id>/reports/endpoint_reservation_plan.md",
+      "runs/<run_id>/reports/semantic_acceptance_report.md"
+    ],
+    "semantic_acceptance_validator_checks": [
+      "source_landscape_artifacts_present",
+      "source_family_monoculture_rejected_without_exception",
+      "placeholder_batch_packets_rejected",
+      "generated_code_runtime_rejected",
+      "domain_membership_predicates_required",
+      "type_field_richness_required_beyond_source_adapter_fields",
+      "joint_population_feasibility_required_before_completion"
     ]
   },
   "graph_contract": {
@@ -82,9 +102,8 @@
     "materialize_dgl": "uv run ortelius materialize dgl --graph-root <candidate_graph_root> --type-graph-id <type_graph_id> --fiber-graph-id <fiber_graph_id>"
   },
   "non_goals": [
-    "live_source_crawling",
-    "domain_graph_population",
     "accepted_fact_writes",
-    "hard_codex_api_interpreter"
+    "hard_codex_api_interpreter",
+    "system_directory_contains_domain_facts"
   ]
 }

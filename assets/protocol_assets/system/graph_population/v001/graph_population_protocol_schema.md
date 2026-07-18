@@ -67,7 +67,9 @@ flowchart TD
   C4 --> C5["Write loop_specs/*.md"]
   C5 --> C6["Initialize candidate graph JSON files"]
   C6 --> C7["Initialize run artifacts: structured cursor, initialized execution_log, source_batch_plan, reports, source_batches, batch_packets, tool_outputs"]
-  C7 --> C8["Run generated-bundle acceptance checks"]
+  C7 --> C7A["MAKE-GRAPH: initialize source landscape map, source family registry, adapter frontier, and source strategy log"]
+  C7A --> C7B["MAKE-GRAPH: initialize joint population feasibility and endpoint reservation plans"]
+  C7B --> C8["Run generated-bundle acceptance checks"]
   C8 --> C9["Write runs/<run_id>/reports/generated_bundle_acceptance_report.md"]
 
   C9 -->|"generated_bundle_acceptance: failed or validation_unavailable_stop"| S["Stop with structured failure"]
@@ -79,7 +81,9 @@ flowchart TD
   E2 --> E3["Verify run_contract_completeness"]
   E3 -->|"incomplete"| S
   E3 --> E4["Reconcile graph paths and inspect current graph JSON state"]
-  E4 --> E5["Derive next legal bounded action from manifest order, loop spec, cursor, log, and repo reality"]
+  E4 --> E4A{"MAKE-GRAPH source landscape and joint population control surfaces valid?"}
+  E4A -->|"no"| S
+  E4A -->|"yes"| E5["Derive next legal bounded action from manifest order, loop spec, cursor, log, and repo reality"]
   E5 --> E6["Execute one Markdown-authorized action"]
   E6 --> E7["Persist source batches, Markdown reports, graph JSON changes, or tool output logs"]
   E7 --> E8["Validate affected state"]
@@ -214,6 +218,110 @@ in repo-local Markdown/JSON/log state.
 
 The generated bundle may stop only after the relevant recovery ladder is absent
 because the failure is terminal, or present and explicitly exhausted.
+
+
+
+### 0.0.2.2 Source Landscape, Domain Membership, And Joint Planning Directive
+
+For ordinary `MAKE-GRAPH`, Codex must not move directly from a queryable source
+adapter to graph population. The generated workflow must first separate three
+phases:
+
+```text
+source_landscape_discovery
+source_adapter_selection
+source_exploitation
+```
+
+Source landscape discovery is semantic research over the available source
+ecology. It asks which source families exist for the domain, what evidence
+shapes they can provide, which graph loops they can support, and where they are
+shallow or biased. Source adapter selection chooses concrete access paths for
+those families. Source exploitation pulls records or evidence only after the
+source landscape has shaped the type, field, edge, and population plans.
+
+The generated bundle must distinguish:
+
+```text
+source_family: the information family or institution class, such as a public
+  authority file, institution collection API, standards vocabulary, official
+  directory, catalog, archive, registry, or broad public knowledge base
+source_adapter: the concrete access method for a source family, such as a
+  SPARQL endpoint, mirror, public API, search page, catalog page, downloaded
+  file, or human-supplied source list
+source_endpoint: the exact URL, API endpoint, query surface, local source file,
+  or navigation target
+source_record: the retrieved item, row, page, claim, catalog record, source
+  excerpt, or evidence object used by a bounded action
+```
+
+Multiple adapters or endpoints for one source family do not create source
+landscape diversity. For example, an official Wikidata endpoint, a Wikidata
+mirror, and a Wikidata entity page are different adapters/endpoints for the
+same source family. Switching between them is adapter recovery, not source
+landscape recovery.
+
+Before target-scale type, field, instance, edge, or edge-instance population,
+every ordinary `MAKE-GRAPH` bundle must create and maintain these run artifacts:
+
+```text
+runs/<run_id>/reports/source_landscape_map.md
+runs/<run_id>/reports/source_family_registry.md
+runs/<run_id>/source_adapter_candidate_frontier.md
+runs/<run_id>/reports/source_strategy_decision_log.md
+runs/<run_id>/reports/joint_population_feasibility_plan.md
+runs/<run_id>/reports/endpoint_reservation_plan.md
+```
+
+The source landscape artifacts are not optional decorations. They are the
+control surface that keeps Codex in exploratory source-discovery mode before it
+operationalizes record extraction. If they are missing, empty, or replaced by
+one source adapter family, the run must stop with
+`source_landscape_missing`, `source_family_monoculture`, or
+`source_strategy_decision_log_missing` before target-scale population.
+
+The generated workflow must also separate type membership from domain
+membership. A source row may prove that an entity belongs to a broad source
+class without proving that it belongs in the requested domain graph. Every
+ordinary population-eligible type must define:
+
+```text
+type_membership_predicate:
+domain_membership_predicate:
+domain_exclusion_predicate:
+domain_membership_evidence_required:
+```
+
+A fiber node counts toward accepted graph targets only when both the type
+membership predicate and the domain membership predicate are satisfied by
+persisted source evidence. A source query result, source category, occupation,
+classification class, or adapter row is not sufficient by itself.
+
+For edge-heavy graph targets, node and edge population must be planned jointly.
+The bundle must not freeze all node buckets first and then discover that the
+frozen endpoints cannot support requested edge counts. Before target-scale
+fiber-node writes, the generated workflow must run a joint feasibility plan:
+
+```text
+1. discover candidate edge pairs and relation evidence;
+2. reserve endpoints needed for requested edge targets;
+3. populate node buckets around reserved endpoints;
+4. backfill remaining node slots only after edge feasibility is preserved;
+5. write graph JSON only from Markdown-authorized batch rows.
+```
+
+Endpoint-cap conflict is recoverable, not automatically terminal. If exact node
+bucket caps conflict with pair-evidenced edge targets, the next legal action is
+an explicit Markdown repair child loop such as:
+
+```text
+JointPopulation.Repair.EndpointReservation
+```
+
+That loop may reselect endpoint nodes from edge evidence, change the sampling
+strategy, replace weak edge families, replace weak node types, add admissible
+source families, split an overbroad type, narrow domain predicates, or write a
+precise blocker only after those repairs are exhausted.
 
 ### 0.0.3 Invocation Dispatch
 
@@ -875,6 +983,11 @@ that no graph-build target is being executed. If a graph-build target exists,
 Minimum shape:
 
 ```text
+SourceLandscapeDiscovery.Domain.SourceBatch.MapSourceFamilies:
+  target_count: enough source families to support type, field, edge, instance, and edge-evidence discovery
+  writes: runs/<run_id>/reports/source_landscape_map.md, runs/<run_id>/reports/source_family_registry.md, runs/<run_id>/source_adapter_candidate_frontier.md, runs/<run_id>/reports/source_strategy_decision_log.md
+  completion: source family registry and strategy decision log are sufficient to choose adapters or a precise source-landscape blocker fires
+
 TypeSetDiscovery.SourceBatch.ResearchCandidateTypes:
   target_count: graph_build_target.type_graph_targets.node_type_count
   writes: candidate_graphs/<type_graph_id>/nodes.json
@@ -901,8 +1014,13 @@ TypeEdgeFieldDiscovery.EdgeType.SourceBatch.SearchRelationFieldCandidates:
   writes: candidate_graphs/<type_graph_id>/edges.json
   completion: each frozen type edge has edge-field-complete, edge-field-deferred, or edge-field-blocked state
 
+JointPopulationPlanning.TypeEdge.SourceBatch.ReserveEndpoints:
+  iterator: accepted type edges and candidate edge-pair evidence batches
+  writes: runs/<run_id>/reports/joint_population_feasibility_plan.md, runs/<run_id>/reports/endpoint_reservation_plan.md
+  completion: node bucket plan and edge target plan are jointly feasible, or repair/frontier/blocker state is logged
+
 InstancePopulation.Type.SourceBatch.WriteInstanceNodes:
-  iterator: each fiber-population-eligible frozen type node
+  iterator: each fiber-population-eligible frozen type node, ordered by endpoint reservation plan before backfill
   target_count_per_type: graph_build_target.fiber_graph_targets.instances_per_node_type
   writes: candidate_graphs/<fiber_graph_id>/nodes.json
   completion: each eligible type node has target_count_per_type accepted, source-backed, field-complete fiber nodes or stop condition fires
@@ -976,6 +1094,14 @@ Every generated graph-build bundle must include these gates before graph JSON
 can be accepted as complete:
 
 ```text
+source_landscape_gate
+source_family_diversity_gate
+source_monoculture_exception_gate
+domain_membership_gate
+joint_population_feasibility_gate
+endpoint_reservation_gate
+markdown_batch_packet_completeness_gate
+generated_code_runtime_rejection_gate
 base_entity_type_admission_gate
 query_derived_type_rejection_gate
 type_diversity_gate
@@ -1095,6 +1221,20 @@ Accepted fiber nodes must be source-backed and field-complete according to the
 type-specific `type_fields` discovered earlier in the generated bundle. The
 schema must not allow a fiber node to count merely because it has a source ID,
 label, URL, coordinate, source category, or other source-adapter field.
+
+Field completion has three distinct levels and the generated reports must not
+collapse them:
+
+```text
+identity_scaffold_complete: identity/source adapter fields are present
+source_membership_complete: type membership evidence exists
+domain_field_complete: type-specific domain-descriptive fields have sourced values
+```
+
+Only `domain_field_complete` can count as field-complete for ordinary
+`MAKE-GRAPH`. A record with only name, source ID, source URL, source category,
+type membership basis, source scope, coordinates, or generic description is an
+identity scaffold, not a semantically field-complete graph node.
 
 For a fiber node to count, the source evidence must support the concrete
 record's membership in the declared type, not merely show that the source
@@ -4565,6 +4705,22 @@ A generated protocol bundle is acceptable only if:
   `GENERATE-BUNDLE -> ACCEPT-GENERATED-BUNDLE -> EXECUTE-BUNDLE`;
 - if `front_door_mode` is `MAKE-GRAPH`, `control_loop_plan.md` exists as a
   dedicated generated file and is referenced by the manifest;
+- if `front_door_mode` is `MAKE-GRAPH`, the run initializes
+  `runs/<run_id>/reports/source_landscape_map.md`,
+  `runs/<run_id>/reports/source_family_registry.md`,
+  `runs/<run_id>/source_adapter_candidate_frontier.md`,
+  `runs/<run_id>/reports/source_strategy_decision_log.md`,
+  `runs/<run_id>/reports/joint_population_feasibility_plan.md`, and
+  `runs/<run_id>/reports/endpoint_reservation_plan.md`;
+- if `front_door_mode` is `MAKE-GRAPH`, the source landscape map distinguishes
+  source family, source adapter, source endpoint, and source record;
+- if `front_door_mode` is `MAKE-GRAPH`, a single source family cannot satisfy
+  source diversity unless a logged `single_authoritative_source_family_exception`
+  explains why the domain has one canonical source;
+- if `front_door_mode` is `MAKE-GRAPH`, each population-eligible type defines
+  type membership, domain membership, and domain exclusion predicates;
+- if `front_door_mode` is `MAKE-GRAPH`, joint population feasibility and endpoint
+  reservation planning happen before target-scale fiber-node writes;
 - if `front_door_mode` is `MAKE-GRAPH`, the acceptance report says whether the
   generated bundle may be handed to the control protocol;
 - if `front_door_mode` is `MAKE-GRAPH`, the acceptance report states
@@ -4600,11 +4756,17 @@ A generated protocol bundle is acceptable only if:
   root before graph JSON is written;
 - no graph-shaping decision exists only in an external temporary file, terminal
   output, model memory, or generated code;
+- no batch packet is a placeholder such as `status: see execution log and reports`;
+- every batch packet contains an ordered item/checklist surface, acceptance and
+  rejection criteria, write targets, cursor update rule, and resume point;
 - generated code does not own graph-building traversal, selection, or graph JSON
   writes;
 - existing graph-tool output logs, if any, live under the run tool output root
   and do not choose graph contents;
 - instance discovery defines dedupe and entity-resolution rules;
+- instance discovery writes only nodes that satisfy both type membership and
+  domain membership evidence requirements;
+- source query row membership alone is not enough to accept a fiber node;
 - type-set discovery and type-set freeze are defined as separate loop stages;
 - type-set discovery defines candidate-pool and type-diversity gates;
 - type-set discovery defines base entity type admission and query-derived type
@@ -4635,6 +4797,9 @@ A generated protocol bundle is acceptable only if:
 - the manifest records path reconciliation;
 - the generated protocol defines the type graph ready gate;
 - edge-instance discovery loops define budgets, frontier output, and pair-evidence recovery policy;
+- edge-instance discovery uses the endpoint reservation plan and treats
+  endpoint-cap conflict as a recoverable joint-population repair, not an
+  immediate blocker;
 - edge-field completion loops define missing-value policies, recovery policy, and frontier
   output;
 - `run_contract_completeness.status` is `complete`;
