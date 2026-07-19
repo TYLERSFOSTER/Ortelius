@@ -45,9 +45,10 @@ flowchart TD
   B -->|"MAKE-GRAPH or clear plain-language graph request"| D["Compile graph_build_target"]
   B -->|"EXECUTE-BUNDLE"| E["Control/executor phase"]
 
-  D --> D1["Infer or confirm graph intent"]
-  D1 --> D2["Write runs/<run_id>/reports/graph_intent_contract.md"]
-  D2 --> C
+  D --> D0["Run MAKE-GRAPH front-door intent triage"]
+  D0 -->|"unresolved broad or multi-model intent"| Q["Ask/propose graph intent and stop before source probing or bundle generation"]
+  D0 -->|"intent supplied, confirmed, or explicitly authorized"| D1["Compile graph_intent contract values"]
+  D1 --> C
 
   C --> C1["Create or repair protocol_root under assets/protocol_assets/bundles/"]
   C1 --> C2["Write manifest.json"]
@@ -57,7 +58,7 @@ flowchart TD
   C4 --> C5["Write loop_specs/*.md"]
   C5 --> C6["Initialize candidate graph JSON files"]
   C6 --> C7["Initialize run artifacts: structured cursor, initialized execution_log, source_batch_plan, reports, source_batches, batch_packets, tool_outputs"]
-  C7 --> C7I["MAKE-GRAPH: initialize graph_intent_contract.md"]
+  C7 --> C7I["MAKE-GRAPH: write graph_intent_contract.md as the first run report artifact"]
   C7I --> C7A["MAKE-GRAPH: initialize source landscape map, source family registry, adapter frontier, and source strategy log"]
   C7A --> C7B["MAKE-GRAPH: initialize joint population feasibility and endpoint reservation plans"]
   C7B --> C8["Run generated-bundle acceptance checks"]
@@ -641,26 +642,51 @@ Plain-language request to run/populate/continue an existing bundle
 Do not inspect sources, select records, write graph JSON, or advance the cursor
 until the dispatch decision and bundle existence check are explicit.
 
+### 0.0.3.1 Raw MAKE-GRAPH Front-Door Rule
+
+This control protocol executes generated bundles. If Codex is invoked with a
+raw `MAKE-GRAPH` prompt and no existing manifest/cursor surface, the next legal
+action is not source probing, source lookup, bundle generation, or population
+framing. Route the request to the schema's `MAKE-GRAPH Front-Door Intent
+Triage`.
+
+For a raw `MAKE-GRAPH` request that supplies only domain + target counts and no
+confirmed graph intent, modeling lens, sufficient examples, or competency
+questions, Codex must treat the prompt as valid but graph-intent unresolved.
+For broad or multi-model domains, the only legal first action is:
+
+```text
+GraphIntentAlignment.Domain.ResolveIntent
+```
+
+That action may only ask bounded graph-intent questions or propose two to four
+candidate graph lenses and stop. It must not inspect external sources, probe
+source adapters, create a bundle, write graph JSON, or count any graph-building
+progress.
+
 ### 0.0.4 First Actions For This Control Protocol
 
 After dispatch, perform this sequence before any graph-population action:
 
 ```text
 1. identify mode, protocol_root, and run_id;
-2. verify required bundle files exist;
-3. read manifest.json;
-4. read graph_population_protocol.md;
-5. read control_loop_plan.md when present; for `MAKE-GRAPH`, this file is
+2. if this is a raw MAKE-GRAPH request without an existing manifest, route to
+   schema front-door intent triage and stop unless graph intent is confirmed or
+   explicitly authorized for infer-and-proceed;
+3. verify required bundle files exist;
+4. read manifest.json;
+5. read graph_population_protocol.md;
+6. read control_loop_plan.md when present; for `MAKE-GRAPH`, this file is
    mandatory and must be read;
-6. for `MAKE-GRAPH`, read manifest.graph_intent and graph_intent_contract.md;
-7. read ordered loop specs;
-8. read cursor.json and execution_log.md;
-9. reconcile candidate graph paths;
-10. derive the next legal bounded action from the cursor and loop surface;
-11. if the manifest is an ordinary `MAKE-GRAPH` graph-build run, set the
+7. for `MAKE-GRAPH`, read manifest.graph_intent and graph_intent_contract.md;
+8. read ordered loop specs;
+9. read cursor.json and execution_log.md;
+10. reconcile candidate graph paths;
+11. derive the next legal bounded action from the cursor and loop surface;
+12. if the manifest is an ordinary `MAKE-GRAPH` graph-build run, set the
     effective continuation target to `graph_build_targets_met` unless explicit
     manual step-through/debugging was requested;
-12. state the bounded action and stop condition before mutating files.
+13. state the bounded action and stop condition before mutating files.
 ```
 
 If any required artifact is missing or contradictory, stop with a structured

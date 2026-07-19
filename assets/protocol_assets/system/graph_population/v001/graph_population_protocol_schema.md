@@ -1,5 +1,57 @@
 # Graph Population Protocol Schema
 
+## MAKE-GRAPH Front-Door Intent Triage
+
+This is the first normative step for every `MAKE-GRAPH` invocation. The
+minimal human prompt containing only `MAKE-GRAPH`, this schema path, a domain
+label, and target counts is valid and sufficient to start the system. It is
+not a bad prompt and it must not be rejected merely because it omits
+`graph_intent`.
+
+Missing graph intent is itself the trigger for triage. Codex must run this
+triage before source lookup, source probing, source-adapter tests, bundle
+generation, type discovery, edge discovery, graph JSON writing, validation of
+generated graph files, or any population framing. Reading repo-local protocol
+documents and validators to understand the system is allowed, but no external
+source probe or graph-shaping artifact may be treated as the first bounded
+action.
+
+The triage decision is:
+
+```text
+IF invocation mode is MAKE-GRAPH
+AND the request supplies domain + target counts
+AND the request does not supply a confirmed graph intent, modeling lens,
+    sufficient positive/negative examples, or competency questions
+THEN classify graph_intent_status: unresolved
+AND, if the domain label is broad or multi-model, the only legal first action is:
+  GraphIntentAlignment.Domain.ResolveIntent
+```
+
+Broad or multi-model domain labels include cities, regions, institutions,
+industries, disciplines, cultural fields, historical periods, organizations,
+and other labels that can support many incompatible graph models. Examples:
+`Vista California` could mean civic infrastructure, local institutions, people,
+property, ecology, transportation, events, or businesses. `American art world`
+could mean artists and works, institutions and exhibitions, markets and
+collectors, pedagogy and influence, criticism and publications, or many other
+models.
+
+When triage yields `graph_intent_status: unresolved`, Codex must do exactly one
+of these and then stop:
+
+```text
+1. ask bounded graph-intent alignment questions; or
+2. propose two to four candidate graph lenses and ask for confirmation.
+```
+
+Codex must not ask the human to rewrite the basic `MAKE-GRAPH` prompt. The
+system owns this detection step. Codex may infer and proceed without a human
+reply only when the prompt explicitly supplies `infer_graph_intent_and_proceed:
+true` or an equivalent instruction.
+
+Source probing before this front-door triage passes is a loop-order violation.
+
 ## Quick Use For Human Operator
 
 Start here when you want Codex to create a new graph-population bundle, or when
@@ -15,7 +67,17 @@ as the graph-build request compilation schema.
 
 Make graph on domain: <domain>, with <N> node types and <K> instances of each
 type, and then <E> edge types and <J> instances of each.
+```
 
+That minimal prompt is complete enough to start Ortelius. If graph intent is
+missing and the domain is broad or multi-model, Codex must not ask for a better
+prompt; it must enter `GraphIntentAlignment.Domain.ResolveIntent` as the first
+legal action, ask bounded alignment questions or propose candidate lenses, and
+stop before source probing or bundle generation.
+
+You may optionally accelerate triage by adding:
+
+```text
 graph_intent:
   domain_lens: <optional modeling lens>
   positive_type_examples:
@@ -28,10 +90,8 @@ graph_intent:
     - <optional>
 ```
 
-If the domain is broad and no graph intent is supplied, Codex must pause to
-infer or confirm the graph intent before graph-building loops begin. The domain
-label says where the graph lives; the graph-intent contract says what kind of
-graph is being built.
+The domain label says where the graph lives; the graph-intent contract says
+what kind of graph is being built.
 
 If you only want Codex to create the protocol bundle and stop before population,
 tell Codex:
@@ -74,9 +134,10 @@ flowchart TD
   B -->|"MAKE-GRAPH or clear plain-language graph request"| D["Compile graph_build_target"]
   B -->|"EXECUTE-BUNDLE"| E["Control/executor phase"]
 
-  D --> D1["Infer or confirm graph intent"]
-  D1 --> D2["Write runs/<run_id>/reports/graph_intent_contract.md"]
-  D2 --> C
+  D --> D0["Run MAKE-GRAPH front-door intent triage"]
+  D0 -->|"unresolved broad or multi-model intent"| Q["Ask/propose graph intent and stop before source probing or bundle generation"]
+  D0 -->|"intent supplied, confirmed, or explicitly authorized"| D1["Compile graph_intent contract values"]
+  D1 --> C
 
   C --> C1["Create or repair protocol_root under assets/protocol_assets/bundles/"]
   C1 --> C2["Write manifest.json"]
@@ -86,7 +147,7 @@ flowchart TD
   C4 --> C5["Write loop_specs/*.md"]
   C5 --> C6["Initialize candidate graph JSON files"]
   C6 --> C7["Initialize run artifacts: structured cursor, initialized execution_log, source_batch_plan, reports, source_batches, batch_packets, tool_outputs"]
-  C7 --> C7I["MAKE-GRAPH: initialize graph_intent_contract.md"]
+  C7 --> C7I["MAKE-GRAPH: write graph_intent_contract.md as the first run report artifact"]
   C7I --> C7A["MAKE-GRAPH: initialize source landscape map, source family registry, adapter frontier, and source strategy log"]
   C7A --> C7B["MAKE-GRAPH: initialize joint population feasibility and endpoint reservation plans"]
   C7B --> C8["Run generated-bundle acceptance checks"]
@@ -246,12 +307,15 @@ because the failure is terminal, or present and explicitly exhausted.
 ### 0.0.2.2 Graph Intent Alignment Directive
 
 For ordinary `MAKE-GRAPH`, a domain label plus target counts is not a complete
-graph specification. A broad label such as a city, institution, discipline,
-industry, or cultural field can support many incompatible graph models.
+graph specification, but it is complete enough to trigger the front-door
+intent triage. A broad label such as a city, institution, discipline, industry,
+or cultural field can support many incompatible graph models.
 
-Before source landscape discovery, type discovery, field discovery, edge
-discovery, instance population, or edge population, this schema must cause
-Codex to infer or confirm graph intent and write the repo-local contract:
+Before source landscape discovery, source probing, source-adapter tests, type
+discovery, field discovery, edge discovery, instance population, edge
+population, bundle generation, or graph JSON writes, this schema must cause
+Codex to infer or confirm graph intent. When intent is confirmed or explicitly
+authorized, the generated bundle must write the repo-local contract:
 
 ```text
 runs/<run_id>/reports/graph_intent_contract.md
@@ -321,9 +385,11 @@ questions, Codex may compile the graph-intent contract directly and record
 `confirmation_status: confirmed` when the supplied intent is internally
 consistent. If the domain is broad and graph intent is missing, Codex must ask
 a bounded alignment question or propose two to four candidate lenses in guided
-or onboarding mode. Codex may infer and proceed without a human reply only when
-the prompt explicitly authorizes `infer_graph_intent_and_proceed: true` or an
-equivalent instruction.
+or onboarding mode, then stop. Codex may infer and proceed without a human
+reply only when the prompt explicitly authorizes
+`infer_graph_intent_and_proceed: true` or an equivalent instruction. The absence
+of graph intent in a minimal `MAKE-GRAPH` prompt is not a prompt error; it is
+the ordinary trigger for front-door triage.
 
 The generated downstream gate must say that every source family, type node,
 type field, type edge, relation field, fiber node, and fiber edge must fit the
@@ -449,11 +515,19 @@ MAKE-GRAPH
   Treat as a front-door macro.
   Parse the short graph request.
   Compile graph_build_target.
-  Infer or confirm graph intent and write graph_intent_contract.md.
+  Run MAKE-GRAPH Front-Door Intent Triage before any source probing, source
+  lookup, bundle generation, type discovery, edge discovery, graph JSON write,
+  or population framing.
+  If graph intent is missing and the domain is broad or multi-model, classify
+  graph_intent_status: unresolved, ask bounded alignment questions or propose
+  two to four candidate lenses, and stop. Do not ask for a better prompt.
+  Continue only when graph intent is supplied, confirmed, or explicitly
+  authorized for infer-and-proceed.
   Default source policy is live_lookup_required_and_authorized unless the
   invocation explicitly says no_live_lookup, bundle_only, scaffold_only,
   smoke_only, or no_population.
-  Generate the bundle under this schema.
+  Generate the bundle under this schema, writing graph_intent_contract.md as
+  the first run report artifact.
   Run generated-bundle acceptance checks.
   If the prompt asks to make/populate the graph, hand off through files to
   graph_population_control_protocol.md and execute only under that protocol.
@@ -472,8 +546,10 @@ No graph-building or bundle-generation intent
   Stop and ask for the intended mode.
 ```
 
-Do not begin source lookup, graph JSON writes, bundle generation, or execution
-until the dispatch decision is explicit.
+Do not begin source lookup, source probing, graph JSON writes, bundle
+generation, or execution until the dispatch decision is explicit and, for raw
+`MAKE-GRAPH`, front-door intent triage has either passed or stopped for human
+alignment.
 
 ### 0.0.4 First Actions For This Schema
 
@@ -494,15 +570,22 @@ For `MAKE-GRAPH`:
 
 ```text
 1. parse the request into graph_build_target;
-2. infer or confirm graph intent;
-3. write runs/<run_id>/reports/graph_intent_contract.md;
-4. set default_source_policy_for_make_graph: live_lookup_required_and_authorized unless explicitly forbidden;
-5. identify source-scope requirements and source boundaries under the graph-intent contract;
+2. run MAKE-GRAPH Front-Door Intent Triage;
+3. if graph intent is missing and the domain is broad or multi-model, set
+   graph_intent_status: unresolved, ask bounded alignment questions or propose
+   two to four candidate lenses, and stop without source probing, bundle
+   generation, graph JSON writes, or validation;
+4. continue only if graph intent is supplied, confirmed, or explicitly
+   authorized for infer-and-proceed;
+5. derive protocol_root, run_id, graph IDs, source policy, and source boundaries
+   under the graph-intent contract;
 6. create the generated bundle, including explicit Markdown loop surfaces;
-7. run generated-bundle acceptance checks;
-8. stop if the bundle is incomplete;
-9. load the control protocol and hand off through repo-local artifacts with
-   continue_until: graph_build_targets_met;
+7. write runs/<run_id>/reports/graph_intent_contract.md as the first run report
+   artifact;
+8. run generated-bundle acceptance checks;
+9. stop if the bundle is incomplete;
+10. load the control protocol and hand off through repo-local artifacts with
+    continue_until: graph_build_targets_met;
 10. execute until semantic graph targets are met, the human stops, an explicit
     execution budget pauses the run, or a real logged blocker fires;
 11. continue only through repo-local handoff artifacts, not memory.

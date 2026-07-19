@@ -328,6 +328,41 @@ def test_validate_system_protocol_assets_accepts_current_system_assets() -> None
     assert report.ok
 
 
+def test_validate_system_protocol_assets_rejects_missing_make_graph_front_door(
+    tmp_path: Path,
+) -> None:
+    system_root = tmp_path / "system"
+    shutil.copytree(SYSTEM_ROOT, system_root)
+    schema_path = system_root / "graph_population_protocol_schema.md"
+    schema_text = schema_path.read_text(encoding="utf-8")
+    schema_text = schema_text.replace("MAKE-GRAPH Front-Door Intent Triage", "")
+    schema_path.write_text(schema_text, encoding="utf-8")
+
+    report = validate_system_protocol_assets(system_root)
+
+    assert not report.ok
+    assert report.has_code("missing_graph_intent_front_door")
+
+
+def test_validate_system_protocol_assets_rejects_generate_prompt_without_front_door(
+    tmp_path: Path,
+) -> None:
+    system_root = tmp_path / "system"
+    shutil.copytree(SYSTEM_ROOT, system_root)
+    prompt_path = system_root / "prompts" / "generate_bundle.md"
+    prompt_text = prompt_path.read_text(encoding="utf-8")
+    prompt_text = prompt_text.replace(
+        "minimal prompt with only domain + target",
+        "generated bundle prompt may include a domain and target",
+    )
+    prompt_path.write_text(prompt_text, encoding="utf-8")
+
+    report = validate_system_protocol_assets(system_root)
+
+    assert not report.ok
+    assert report.has_code("missing_graph_intent_front_door")
+
+
 def test_validate_protocol_bundle_accepts_minimal_generated_bundle() -> None:
     report = validate_protocol_bundle(VALID_BUNDLE)
 

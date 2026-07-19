@@ -241,6 +241,24 @@ def validate_system_protocol_assets(system_root: str | Path) -> ProtocolAssetRep
         )
         _require_text(
             protocol_schema,
+            "MAKE-GRAPH Front-Door Intent Triage",
+            issues,
+            "missing_graph_intent_front_door",
+        )
+        _require_text(
+            protocol_schema,
+            "minimal human prompt containing only `MAKE-GRAPH`",
+            issues,
+            "missing_graph_intent_front_door",
+        )
+        _require_text(
+            protocol_schema,
+            "Source probing before this front-door triage passes is a loop-order violation.",
+            issues,
+            "missing_graph_intent_front_door",
+        )
+        _require_text(
+            protocol_schema,
             "Graph Intent Alignment Directive",
             issues,
             "missing_graph_intent_contract",
@@ -285,6 +303,18 @@ def validate_system_protocol_assets(system_root: str | Path) -> ProtocolAssetRep
         )
         _require_text(
             control_protocol,
+            "Raw MAKE-GRAPH Front-Door Rule",
+            issues,
+            "missing_graph_intent_front_door",
+        )
+        _require_text(
+            control_protocol,
+            "GraphIntentAlignment.Domain.ResolveIntent",
+            issues,
+            "missing_graph_intent_front_door",
+        )
+        _require_text(
+            control_protocol,
             "Graph Intent Contract Gate",
             issues,
             "missing_graph_intent_contract",
@@ -316,6 +346,12 @@ def validate_system_protocol_assets(system_root: str | Path) -> ProtocolAssetRep
     if generate_prompt is not None:
         _require_text(generate_prompt, "GENERATE-BUNDLE", issues, "missing_trigger_phrase")
         _require_text(generate_prompt, "domain_lens", issues, "missing_graph_intent_contract")
+        _require_text(
+            generate_prompt,
+            "minimal prompt with only domain + target",
+            issues,
+            "missing_graph_intent_front_door",
+        )
     if execute_prompt is not None:
         _require_text(execute_prompt, "EXECUTE-BUNDLE", issues, "missing_trigger_phrase")
         _require_text(

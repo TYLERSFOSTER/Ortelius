@@ -25,21 +25,13 @@ as the graph-build request compilation schema.
 
 Make graph on domain: <domain>, with <N> node types and <M> instances of each
 type, and then <E> edge types and <K> instances of each.
-
-graph_intent:
-  domain_lens: <optional modeling lens>
-  positive_type_examples:
-    - <optional>
-  positive_relation_examples:
-    - <optional>
-  negative_scope:
-    - <optional>
-  competency_questions:
-    - <optional>
 ```
 
-For broad domains, graph intent is the modeling-lens contract that tells Codex
-what kind of graph to build before source/type/edge loops begin.
+That minimal prompt is valid and sufficient. For broad or multi-model domains,
+missing graph intent triggers front-door triage; Codex must ask bounded
+alignment questions or propose candidate lenses and stop before source probing,
+bundle generation, type discovery, or graph JSON writes. Optional graph-intent
+fields can accelerate triage, but they are not required in the initial prompt.
 
 ## What Ortelius Does Not Do
 

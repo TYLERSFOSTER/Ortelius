@@ -40,22 +40,15 @@ as the graph-build request compilation schema.
 
 Make graph on domain: <domain>, with <N> node types and <M> instances of each
 type, and then <E> edge types and <K> instances of each.
-
-graph_intent:
-  domain_lens: <optional modeling lens>
-  positive_type_examples:
-    - <optional>
-  positive_relation_examples:
-    - <optional>
-  negative_scope:
-    - <optional>
-  competency_questions:
-    - <optional>
 ```
 
-Broad domain labels are not complete graph specifications. Add graph intent
-when you care which kind of graph Codex should build; use a lens, examples,
-exclusions, or competency questions to narrow the run.
+That minimal prompt is supposed to be enough. If the domain is broad or
+multi-model and no graph intent is supplied, Ortelius instructs Codex to pause
+before source probing or bundle generation, ask bounded alignment questions or
+propose candidate graph lenses, and wait for confirmation.
+
+You can optionally accelerate that first intent step with a lens, examples,
+exclusions, or competency questions, but the system owns the detection step.
 
 Generated bundles are local runtime artifacts. They are ignored by git by
 default.

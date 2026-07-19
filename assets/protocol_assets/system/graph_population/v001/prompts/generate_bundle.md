@@ -41,4 +41,11 @@ assets/protocol_assets/system/graph_population/v001/graph_population_control_pro
 
 The generated bundle must use declared graph IDs and must not assume any
 domain-specific graph names.
+
+Front-door note for `MAKE-GRAPH`: a minimal prompt with only domain + target
+counts is valid and sufficient. If graph intent is missing and the domain is
+broad or multi-model, Codex must run GraphIntentAlignment.Domain.ResolveIntent,
+ask bounded alignment questions or propose candidate lenses, and stop before
+source probing or bundle generation. Missing graph intent is the trigger, not a
+reason to ask for a better prompt.
 ```

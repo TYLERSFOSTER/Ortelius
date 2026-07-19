@@ -14,9 +14,11 @@ The Python package does not call Codex or crawl sources by itself. It loads,
 validates, inspects, and materializes graph JSON produced by the protocol
 workflow.
 
-For broad `MAKE-GRAPH` domains, require a graph-intent contract or explicit
-infer-and-proceed authorization before treating source discovery, type discovery,
-edge discovery, or record counts as graph-population progress.
+For broad `MAKE-GRAPH` domains, the minimal domain + counts prompt is valid
+and sufficient. Missing graph intent triggers front-door triage. Codex must ask
+bounded alignment questions or propose candidate graph lenses and stop before
+source probing, bundle generation, source discovery, type discovery, edge
+discovery, or record counts are treated as graph-population progress.
 
 ## Core Context
 
