@@ -44,6 +44,7 @@ REQUIRED_BUNDLE_MANIFEST_FIELDS = (
 MAKE_GRAPH_REQUIRED_ARTIFACT_TEMPLATES = (
     "control_loop_plan.md",
     "runs/<run_id>/reports/generated_bundle_acceptance_report.md",
+    "runs/<run_id>/reports/graph_intent_contract.md",
     "runs/<run_id>/reports/source_landscape_map.md",
     "runs/<run_id>/reports/source_family_registry.md",
     "runs/<run_id>/source_adapter_candidate_frontier.md",
@@ -54,6 +55,7 @@ MAKE_GRAPH_REQUIRED_ARTIFACT_TEMPLATES = (
 )
 
 SEMANTIC_ACCEPTANCE_REQUIRED_TABLES = (
+    "Graph Intent Alignment Review Table",
     "Type Node Semantic Review Table",
     "Type Edge Semantic Review Table",
     "Primitive Relation Family Summary",
@@ -68,6 +70,27 @@ SEMANTIC_ACCEPTANCE_REQUIRED_TABLES = (
     "Generated Code Runtime Audit Table",
     "Counter Reconciliation Table",
     "Final Decision",
+)
+
+GRAPH_INTENT_CONTRACT_REQUIRED_TERMS = (
+    "domain_label",
+    "domain_lens",
+    "confirmation_status",
+    "intent_confirmation_policy",
+    "downstream_gate",
+)
+
+PASSING_GRAPH_INTENT_STATUS_MARKERS = (
+    "graph_intent_status: confirmed",
+    "graph_intent_status: explicitly_authorized_inference",
+    "confirmation_status: confirmed",
+    "confirmation_status: explicitly_authorized_inference",
+)
+
+GRAPH_INTENT_RECORD_KEYS = (
+    "graph_intent_fit",
+    "intent_fit",
+    "supported_competency_questions",
 )
 
 BATCH_PACKET_REQUIRED_TERMS = (
@@ -218,6 +241,30 @@ def validate_system_protocol_assets(system_root: str | Path) -> ProtocolAssetRep
         )
         _require_text(
             protocol_schema,
+            "Graph Intent Alignment Directive",
+            issues,
+            "missing_graph_intent_contract",
+        )
+        _require_text(
+            protocol_schema,
+            "graph_intent_contract.md",
+            issues,
+            "missing_graph_intent_contract",
+        )
+        _require_text(
+            protocol_schema,
+            "domain_lens",
+            issues,
+            "missing_graph_intent_contract",
+        )
+        _require_text(
+            protocol_schema,
+            "competency_questions",
+            issues,
+            "missing_graph_intent_contract",
+        )
+        _require_text(
+            protocol_schema,
             "Source Landscape, Domain Membership, And Joint Planning Directive",
             issues,
             "missing_source_landscape_contract",
@@ -238,6 +285,24 @@ def validate_system_protocol_assets(system_root: str | Path) -> ProtocolAssetRep
         )
         _require_text(
             control_protocol,
+            "Graph Intent Contract Gate",
+            issues,
+            "missing_graph_intent_contract",
+        )
+        _require_text(
+            control_protocol,
+            "graph_intent_contract_missing",
+            issues,
+            "missing_graph_intent_contract",
+        )
+        _require_text(
+            control_protocol,
+            "Graph Intent Alignment Review Table",
+            issues,
+            "missing_graph_intent_contract",
+        )
+        _require_text(
+            control_protocol,
             "Source Landscape And Joint Population Gates",
             issues,
             "missing_source_landscape_contract",
@@ -250,8 +315,15 @@ def validate_system_protocol_assets(system_root: str | Path) -> ProtocolAssetRep
         )
     if generate_prompt is not None:
         _require_text(generate_prompt, "GENERATE-BUNDLE", issues, "missing_trigger_phrase")
+        _require_text(generate_prompt, "domain_lens", issues, "missing_graph_intent_contract")
     if execute_prompt is not None:
         _require_text(execute_prompt, "EXECUTE-BUNDLE", issues, "missing_trigger_phrase")
+        _require_text(
+            execute_prompt,
+            "graph_intent_contract.md",
+            issues,
+            "missing_graph_intent_contract",
+        )
 
     return ProtocolAssetReport(tuple(issues))
 
@@ -561,6 +633,7 @@ def _validate_make_graph_semantic_contract(
     if semantic_report:
         _validate_semantic_acceptance_report(semantic_report_path, semantic_report, issues)
 
+    _validate_graph_intent_surface(root, run_id, manifest, issues)
     _validate_source_family_surface(root, run_id, manifest, issues)
     _validate_batch_packet_surfaces(root, run_id, manifest, issues)
     _validate_make_graph_record_semantics(root, manifest, issues)
@@ -604,6 +677,105 @@ def _validate_semantic_acceptance_report(
             "distinguishing domain_field_complete from identity scaffold state.",
             path,
         )
+
+
+def _validate_graph_intent_surface(
+    root: Path,
+    run_id: str,
+    manifest: dict[str, Any],
+    issues: list[ProtocolAssetIssue],
+) -> None:
+    manifest_path = root / "manifest.json"
+    graph_intent = _dict_value(manifest.get("graph_intent"))
+    if not graph_intent:
+        _add(
+            issues,
+            "error",
+            "graph_intent_contract_missing",
+            "MAKE-GRAPH manifest must define graph_intent metadata.",
+            manifest_path,
+        )
+
+    contract_path_value = _str_value(graph_intent.get("contract_path"))
+    if not contract_path_value:
+        contract_path_value = f"runs/{run_id}/reports/graph_intent_contract.md"
+        _add(
+            issues,
+            "error",
+            "graph_intent_contract_incomplete",
+            "MAKE-GRAPH graph_intent must define contract_path.",
+            manifest_path,
+        )
+
+    contract_path = root / contract_path_value
+    if not _require_file(contract_path, issues, "graph_intent_contract_missing"):
+        return
+
+    contract_text = contract_path.read_text(encoding="utf-8")
+    contract_lower = contract_text.lower()
+    combined = f"{contract_text}\n{json.dumps(graph_intent, sort_keys=True)}".lower()
+    for term in GRAPH_INTENT_CONTRACT_REQUIRED_TERMS:
+        if term.lower() not in contract_lower:
+            _add(
+                issues,
+                "error",
+                "graph_intent_contract_incomplete",
+                f"Graph intent contract is missing required term {term!r}.",
+                contract_path,
+            )
+
+    if not any(marker in combined for marker in PASSING_GRAPH_INTENT_STATUS_MARKERS):
+        _add(
+            issues,
+            "error",
+            "graph_intent_unconfirmed",
+            "Graph intent contract must record confirmed or explicitly authorized status.",
+            contract_path,
+        )
+
+    if "downstream_gate" not in combined:
+        _add(
+            issues,
+            "error",
+            "graph_intent_downstream_gate_missing",
+            "Graph intent contract must define a downstream_gate.",
+            contract_path,
+        )
+
+    ordered_loop_specs = manifest.get("ordered_loop_specs")
+    if isinstance(ordered_loop_specs, list):
+        lowered_specs = [str(item).lower() for item in ordered_loop_specs]
+        intent_indexes = [
+            idx for idx, value in enumerate(lowered_specs) if "graph_intent" in value
+        ]
+        if not intent_indexes:
+            _add(
+                issues,
+                "error",
+                "graph_intent_loop_order_invalid",
+                "MAKE-GRAPH ordered_loop_specs must include graph-intent alignment.",
+                manifest_path,
+            )
+        else:
+            intent_index = intent_indexes[0]
+            first_semantic_index = next(
+                (
+                    idx
+                    for idx, value in enumerate(lowered_specs)
+                    if "source_landscape" in value
+                    or "type_set" in value
+                    or "type_node_discovery" in value
+                ),
+                None,
+            )
+            if first_semantic_index is not None and intent_index > first_semantic_index:
+                _add(
+                    issues,
+                    "error",
+                    "graph_intent_loop_order_invalid",
+                    "Graph-intent alignment must precede source/type discovery loops.",
+                    manifest_path,
+                )
 
 
 def _validate_source_family_surface(
@@ -767,6 +939,14 @@ def _validate_make_graph_record_semantics(
                     graph_root,
                 )
                 break
+        if not _contains_any_key(raw, GRAPH_INTENT_RECORD_KEYS):
+            _add(
+                issues,
+                "error",
+                "record_graph_intent_fit_missing",
+                f"Type node {record.id or '<unknown>'} is missing graph-intent fit metadata.",
+                graph_root,
+            )
         domain_field_count = _domain_descriptive_field_count(raw)
         if domain_field_count < 3:
             _add(
@@ -801,6 +981,15 @@ def _validate_make_graph_record_semantics(
         for record in bundle.type_edge_records:
             if record.status != "accepted":
                 continue
+            if not _contains_any_key(record.raw, GRAPH_INTENT_RECORD_KEYS):
+                _add(
+                    issues,
+                    "error",
+                    "record_graph_intent_fit_missing",
+                    f"Type edge {record.id or '<unknown>'} is missing graph-intent fit metadata.",
+                    graph_root,
+                )
+                break
             if not _contains_key(record.raw, "pair_evidence_feasibility_status"):
                 _add(
                     issues,
@@ -883,6 +1072,10 @@ def _type_field_mapping(record: dict[str, Any]) -> dict[str, Any]:
                 result[name] = item
         return result
     return {}
+
+
+def _contains_any_key(value: Any, keys: tuple[str, ...]) -> bool:
+    return any(_contains_key(value, key) for key in keys)
 
 
 def _contains_key(value: Any, key: str) -> bool:

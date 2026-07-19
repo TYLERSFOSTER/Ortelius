@@ -20,6 +20,7 @@ VALID_BUNDLE = FIXTURE_ROOT / "minimal_generated_bundle"
 
 
 MAKE_GRAPH_TABLES = (
+    "Graph Intent Alignment Review Table",
     "Type Node Semantic Review Table",
     "Type Edge Semantic Review Table",
     "Primitive Relation Family Summary",
@@ -41,6 +42,18 @@ def _promote_fixture_to_make_graph(bundle: Path) -> dict:
     manifest_path = bundle / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     manifest["front_door_mode"] = "MAKE-GRAPH"
+    manifest["graph_intent"] = {
+        "required": True,
+        "contract_path": "runs/run_001/reports/graph_intent_contract.md",
+        "domain_lens": "fixture validation lens",
+        "confirmation_status": "confirmed",
+        "intent_confirmation_policy": "user_supplied_confirmed",
+        "downstream_gate": "all graph-shaping candidates must fit graph_intent_contract",
+    }
+    ordered = manifest.get("ordered_loop_specs", [])
+    graph_intent_spec = "loop_specs/01_graph_intent_alignment.md"
+    if graph_intent_spec not in ordered:
+        manifest["ordered_loop_specs"] = [graph_intent_spec, *ordered]
     manifest["graph_build_target"] = {
         "mode": "MAKE-GRAPH",
         "completion_target": "graph_build_targets_met",
@@ -53,7 +66,106 @@ def _promote_fixture_to_make_graph(bundle: Path) -> dict:
         },
     }
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    _write_graph_intent_loop_spec(bundle)
     return manifest
+
+
+def _write_graph_intent_loop_spec(bundle: Path) -> None:
+    loop_specs = bundle / "loop_specs"
+    loop_specs.mkdir(parents=True, exist_ok=True)
+    (loop_specs / "01_graph_intent_alignment.md").write_text(
+        """# Graph Intent Alignment
+
+## Loop Identity
+
+loop_id: graph_intent_alignment
+graph_level: bundle
+manifest_order_index: 1
+
+## Inputs
+
+input_files: manifest.json
+required_manifest_fields: domain, graph_intent
+
+## Iterator
+
+iterator_name: graph_intent_contract_check
+iterator_source: domain label and graph intent metadata
+target_count: 1
+
+## Current Item Shape
+
+current_item_fields: domain.label, graph_intent.domain_lens
+cursor_fields: active_loop_id, active_action_id, active_iteration
+
+## Action Template
+
+action_id_template: graph_intent_alignment.<domain_slug>
+action_prompt_template: Verify graph intent contract before source or type discovery.
+
+## Allowed Writes
+
+output_files: runs/run_001/reports/graph_intent_contract.md, runs/run_001/execution_log.md,\
+  runs/run_001/cursor.json
+write_rule: write graph intent contract only
+max_records_written_per_action: 0
+
+## Source Boundaries
+
+allowed_source_types: supplied domain description and graph intent examples
+allowed_source_locations: repository fixture only
+disallowed_sources: live web
+evidence_threshold: fixture graph intent metadata is sufficient
+
+## Evidence Required
+
+record_evidence_required: graph intent status and downstream gate
+field_evidence_required: none
+unsupported_claim_rule: no graph facts are written
+
+## Validation Required
+
+validation_checklist: graph_intent_contract.md has required fields
+validation_unavailable_rule: stop
+
+## Completion Rule
+
+action_completion_rule: graph intent contract initialized
+loop_completion_rule: graph intent status confirmed
+
+## Semantic Acceptance Gate
+
+semantic_gate: graph intent status must be confirmed before target progress
+accepted_counting_rule: graph intent setup does not count toward graph targets
+
+## Recovery Policy
+
+recoverable_failure_classes: missing examples, ambiguous lens
+recovery_ladder: request_examples_or_mark_needs_human_confirmation
+recovery_attempt_budget: 1
+resume_condition: graph intent confirmed
+exhaustion_condition: graph intent remains ambiguous
+
+## Batch Execution
+
+batch_execution_meaning: single_fixture_batch_not_generated_code_loop
+batch_plan_path: runs/run_001/source_batch_plan.md
+batch_packet_path: runs/run_001/batch_packets/fixture_batch.md
+batch_size: fixture_small
+checkpoint_rule: update cursor and execution log after fixture action
+
+## Stop Conditions
+
+stop_conditions: graph_intent_contract_missing, graph_intent_unconfirmed
+failure_report_fields: failure_kind, next_required_input
+
+## Handoff
+
+handoff_to_next_loop: domain_suitability
+cursor_update_rule: set active_loop_id to domain_suitability
+""",
+        encoding="utf-8",
+    )
 
 
 def _write_make_graph_artifacts(bundle: Path, *, placeholder_packet: bool = False) -> None:
@@ -65,6 +177,24 @@ def _write_make_graph_artifacts(bundle: Path, *, placeholder_packet: bool = Fals
     )
     (reports / "generated_bundle_acceptance_report.md").write_text(
         "# Generated Bundle Acceptance Report\n\ngenerated_bundle_acceptance: passed\n",
+        encoding="utf-8",
+    )
+    (reports / "graph_intent_contract.md").write_text(
+        "# Graph Intent Contract\n\n"
+        "domain_label: Fixture Domain\n"
+        "domain_lens: fixture validation lens\n"
+        "positive_type_examples: Fixture Type\n"
+        "positive_relation_examples: fixture relation\n"
+        "positive_instance_examples: Fixture Instance\n"
+        "negative_type_examples: out-of-scope type\n"
+        "negative_relation_examples: out-of-scope relation\n"
+        "negative_scope: fixture exclusions\n"
+        "competency_questions: What fixture records validate the protocol?\n"
+        "inferred_candidate_lenses: fixture validation lens\n"
+        "chosen_lens: fixture validation lens\n"
+        "confirmation_status: confirmed\n"
+        "intent_confirmation_policy: user_supplied_confirmed\n"
+        "downstream_gate: all graph-shaping candidates must fit graph_intent_contract\n",
         encoding="utf-8",
     )
     (reports / "source_landscape_map.md").write_text(
@@ -150,6 +280,10 @@ def _write_shallow_make_graph_records(bundle: Path) -> None:
         "label": "Artist",
         "status": "accepted",
         "fiber_population_eligible": True,
+        "graph_intent_fit": "fits fixture validation lens",
+        "supported_competency_questions": [
+            "What fixture records validate the protocol?"
+        ],
         "type_membership_predicate": "source record says artist",
         "domain_membership_predicate": "source record says domain relevant",
         "domain_exclusion_predicate": "exclude generic source-only matches",
@@ -335,6 +469,63 @@ def test_validate_protocol_bundle_rejects_make_graph_without_required_runtime_ar
 
     assert not report.ok
     assert report.has_code("missing_make_graph_artifact")
+
+
+def test_validate_protocol_bundle_rejects_make_graph_without_graph_intent_contract(
+    tmp_path: Path,
+) -> None:
+    bundle = tmp_path / "bundle"
+    shutil.copytree(VALID_BUNDLE, bundle)
+    _promote_fixture_to_make_graph(bundle)
+    _write_make_graph_artifacts(bundle)
+    (bundle / "runs" / "run_001" / "reports" / "graph_intent_contract.md").unlink()
+
+    report = validate_protocol_bundle(bundle)
+
+    assert not report.ok
+    assert report.has_code("missing_make_graph_artifact") or report.has_code(
+        "graph_intent_contract_missing"
+    )
+
+
+def test_validate_protocol_bundle_rejects_incomplete_graph_intent_contract(
+    tmp_path: Path,
+) -> None:
+    bundle = tmp_path / "bundle"
+    shutil.copytree(VALID_BUNDLE, bundle)
+    _promote_fixture_to_make_graph(bundle)
+    _write_make_graph_artifacts(bundle)
+    (bundle / "runs" / "run_001" / "reports" / "graph_intent_contract.md").write_text(
+        "# Graph Intent Contract\n\ndomain_label: Fixture Domain\n",
+        encoding="utf-8",
+    )
+
+    report = validate_protocol_bundle(bundle)
+
+    assert not report.ok
+    assert report.has_code("graph_intent_contract_incomplete")
+
+
+def test_validate_protocol_bundle_rejects_semantic_report_without_graph_intent_table(
+    tmp_path: Path,
+) -> None:
+    bundle = tmp_path / "bundle"
+    shutil.copytree(VALID_BUNDLE, bundle)
+    _promote_fixture_to_make_graph(bundle)
+    _write_make_graph_artifacts(bundle)
+    report_path = bundle / "runs" / "run_001" / "reports" / "semantic_acceptance_report.md"
+    text = report_path.read_text(encoding="utf-8")
+    text = text.replace(
+        "\n## Graph Intent Alignment Review Table\n\n"
+        "| key | value |\n|---|---|\n| initialized | true |\n",
+        "\n",
+    )
+    report_path.write_text(text, encoding="utf-8")
+
+    report = validate_protocol_bundle(bundle)
+
+    assert not report.ok
+    assert report.has_code("semantic_acceptance_report_incomplete")
 
 
 def test_validate_protocol_bundle_rejects_placeholder_markdown_batch_packet(

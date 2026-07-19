@@ -40,7 +40,22 @@ as the graph-build request compilation schema.
 
 Make graph on domain: <domain>, with <N> node types and <M> instances of each
 type, and then <E> edge types and <K> instances of each.
+
+graph_intent:
+  domain_lens: <optional modeling lens>
+  positive_type_examples:
+    - <optional>
+  positive_relation_examples:
+    - <optional>
+  negative_scope:
+    - <optional>
+  competency_questions:
+    - <optional>
 ```
+
+Broad domain labels are not complete graph specifications. Add graph intent
+when you care which kind of graph Codex should build; use a lens, examples,
+exclusions, or competency questions to narrow the run.
 
 Generated bundles are local runtime artifacts. They are ignored by git by
 default.
@@ -177,8 +192,9 @@ Make graph on domain: <domain>, with <N> node types and <M> instances of each
 type, and then <E> edge types and <K> instances of each.
 ```
 
-Codex should create a generated bundle first, then execute bounded
-source-grounded graph actions through that bundle. The generated bundle, not
+Codex should create a generated bundle first, including a graph-intent
+contract for ordinary `MAKE-GRAPH`, then execute bounded source-grounded graph
+actions through that bundle. The generated bundle, not
 model memory, is the run authority.
 
 Generated bundles belong under:

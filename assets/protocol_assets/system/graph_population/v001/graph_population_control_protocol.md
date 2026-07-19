@@ -45,16 +45,20 @@ flowchart TD
   B -->|"MAKE-GRAPH or clear plain-language graph request"| D["Compile graph_build_target"]
   B -->|"EXECUTE-BUNDLE"| E["Control/executor phase"]
 
-  D --> C
+  D --> D1["Infer or confirm graph intent"]
+  D1 --> D2["Write runs/<run_id>/reports/graph_intent_contract.md"]
+  D2 --> C
 
   C --> C1["Create or repair protocol_root under assets/protocol_assets/bundles/"]
   C1 --> C2["Write manifest.json"]
   C2 --> C3["Write graph_population_protocol.md"]
-  C3 --> C4["Write mandatory control_loop_plan.md for MAKE-GRAPH"]
+  C3 --> C3A["MAKE-GRAPH: record graph_intent metadata and contract path"]
+  C3A --> C4["Write mandatory control_loop_plan.md for MAKE-GRAPH"]
   C4 --> C5["Write loop_specs/*.md"]
   C5 --> C6["Initialize candidate graph JSON files"]
   C6 --> C7["Initialize run artifacts: structured cursor, initialized execution_log, source_batch_plan, reports, source_batches, batch_packets, tool_outputs"]
-  C7 --> C7A["MAKE-GRAPH: initialize source landscape map, source family registry, adapter frontier, and source strategy log"]
+  C7 --> C7I["MAKE-GRAPH: initialize graph_intent_contract.md"]
+  C7I --> C7A["MAKE-GRAPH: initialize source landscape map, source family registry, adapter frontier, and source strategy log"]
   C7A --> C7B["MAKE-GRAPH: initialize joint population feasibility and endpoint reservation plans"]
   C7B --> C8["Run generated-bundle acceptance checks"]
   C8 --> C9["Write runs/<run_id>/reports/generated_bundle_acceptance_report.md"]
@@ -68,7 +72,9 @@ flowchart TD
   E2 --> E3["Verify run_contract_completeness"]
   E3 -->|"incomplete"| S
   E3 --> E4["Reconcile graph paths and inspect current graph JSON state"]
-  E4 --> E4A{"MAKE-GRAPH source landscape and joint population control surfaces valid?"}
+  E4 --> E4I{"MAKE-GRAPH graph intent contract valid?"}
+  E4I -->|"no"| S
+  E4I -->|"yes"| E4A{"MAKE-GRAPH source landscape and joint population control surfaces valid?"}
   E4A -->|"no"| S
   E4A -->|"yes"| E5["Derive next legal bounded action from manifest order, loop spec, cursor, log, and repo reality"]
   E5 --> E6["Execute one Markdown-authorized action"]
@@ -223,7 +229,7 @@ create that Markdown loop surface instead.
 For every ordinary `MAKE-GRAPH` bundle, the executor must require and execute:
 
 ```text
-loop_specs/17_semantic_acceptance_gate.md
+loop_specs/18_semantic_acceptance_gate.md
 runs/<run_id>/reports/semantic_acceptance_report.md
 ```
 
@@ -255,6 +261,7 @@ The semantic acceptance report must contain these explicit audit tables, not
 only summary counters:
 
 ```text
+Graph Intent Alignment Review Table
 Type Node Semantic Review Table
 Type Edge Semantic Review Table
 Primitive Relation Family Summary
@@ -433,7 +440,44 @@ field-enrichment Markdown child loop when recovery remains.
 
 
 
-### 0.0.2.2 Source Landscape, Domain Membership, And Joint Planning Directive
+### 0.0.2.3 Graph Intent Contract Gate
+
+For ordinary `MAKE-GRAPH`, the executor must verify graph intent before source
+landscape discovery, type discovery, field discovery, edge discovery, instance
+population, or semantic acceptance completion.
+
+The executor must read:
+
+```text
+manifest.graph_intent
+runs/<run_id>/reports/graph_intent_contract.md
+```
+
+The graph-intent contract is the run's modeling-lens authority. The domain
+label says where the graph lives; the graph-intent contract says what kind of
+graph is being built. The executor must not replace the contract with model
+memory, source salience, or a convenient source adapter's taxonomy.
+
+Passing graph-intent states are only:
+
+```text
+graph_intent_status: confirmed
+graph_intent_status: explicitly_authorized_inference
+confirmation_status: confirmed
+confirmation_status: explicitly_authorized_inference
+```
+
+If the manifest lacks `graph_intent`, stop with `graph_intent_contract_missing`.
+If the contract file is missing, stop with `graph_intent_contract_missing`. If
+the contract exists but has a non-passing status, stop with
+`graph_intent_unconfirmed`. If the contract lacks a downstream gate, stop with
+`graph_intent_downstream_gate_missing`.
+
+When source, type, field, edge, instance, or edge candidates do not fit the
+contract, the next legal action is to write them to a frontier or rejection
+report. Do not accept out-of-intent candidates into target-counting graph JSON.
+
+### 0.0.2.4 Source Landscape, Domain Membership, And Joint Planning Directive
 
 For ordinary `MAKE-GRAPH`, Codex must not move directly from a queryable source
 adapter to graph population. The generated workflow must first separate three
@@ -536,7 +580,7 @@ source families, split an overbroad type, narrow domain predicates, or write a
 precise blocker only after those repairs are exhausted.
 
 
-### 0.0.2.3 Markdown-Controlled Runtime Boundary
+### 0.0.2.5 Markdown-Controlled Runtime Boundary
 
 For ordinary `MAKE-GRAPH`, the generated Markdown/JSON artifacts are the
 workflow runtime. Generated Python, shell scripts, notebooks, SQL files, or
@@ -608,14 +652,15 @@ After dispatch, perform this sequence before any graph-population action:
 4. read graph_population_protocol.md;
 5. read control_loop_plan.md when present; for `MAKE-GRAPH`, this file is
    mandatory and must be read;
-6. read ordered loop specs;
-7. read cursor.json and execution_log.md;
-8. reconcile candidate graph paths;
-9. derive the next legal bounded action from the cursor and loop surface;
-10. if the manifest is an ordinary `MAKE-GRAPH` graph-build run, set the
+6. for `MAKE-GRAPH`, read manifest.graph_intent and graph_intent_contract.md;
+7. read ordered loop specs;
+8. read cursor.json and execution_log.md;
+9. reconcile candidate graph paths;
+10. derive the next legal bounded action from the cursor and loop surface;
+11. if the manifest is an ordinary `MAKE-GRAPH` graph-build run, set the
     effective continuation target to `graph_build_targets_met` unless explicit
     manual step-through/debugging was requested;
-11. state the bounded action and stop condition before mutating files.
+12. state the bounded action and stop condition before mutating files.
 ```
 
 If any required artifact is missing or contradictory, stop with a structured
@@ -1209,6 +1254,7 @@ candidate_graphs/
 runs/<run_id>/cursor.json
 runs/<run_id>/execution_log.md
 runs/<run_id>/reports/generated_bundle_acceptance_report.md, when the bundle came from `MAKE-GRAPH`
+runs/<run_id>/reports/graph_intent_contract.md, when the bundle came from ordinary `MAKE-GRAPH`
 runs/<run_id>/source_batch_plan.md, when source lookup is used
 runs/<run_id>/source_batches/, when source batches influence graph contents
 runs/<run_id>/batch_packets/, when batch execution occurs
@@ -1226,6 +1272,7 @@ The manifest must identify:
 - candidate graph root;
 - canonical `ordered_loop_specs`;
 - graph build target, when the bundle came from a `MAKE-GRAPH` request;
+- graph intent metadata and graph-intent contract path, when the bundle came from a `MAKE-GRAPH` request;
 - control loop plan, when the bundle came from a `MAKE-GRAPH` request;
 - `make_graph_orchestration`, when the bundle came from a `MAKE-GRAPH` request;
 - generated-bundle acceptance report path, when the bundle came from a
@@ -1276,12 +1323,15 @@ The contract is complete only if:
 - `manifest.ordered_loop_specs` exists and all listed files exist;
 - for ordinary `MAKE-GRAPH`, `manifest.ordered_loop_specs` includes a final
   Markdown semantic acceptance loop, normally
-  `loop_specs/17_semantic_acceptance_gate.md`;
+  `loop_specs/18_semantic_acceptance_gate.md`;
 - every loop spec contains the required headings;
 - every loop spec defines source boundaries;
 - every loop spec defines validation as a command, named checklist, or
   unavailable-stop rule;
 - the manifest records declared graph paths and path reconciliation policy;
+- graph-intent alignment and graph-intent contract generation are defined before type-set discovery;
+- graph-intent contract has a passing status or an explicit blocker before semantic loops proceed;
+- source/type/field/edge/population loops reference the graph-intent downstream gate;
 - type-set discovery and type-set freeze gates are defined;
 - type-set discovery defines a candidate-pool size rule and a type diversity
   gate;
@@ -1605,6 +1655,11 @@ Every control pass follows this cycle:
     terminal or recovery-exhausted stop condition has fired.
 ```
 
+For ordinary `MAKE-GRAPH`, if the cursor is not started and graph-intent
+alignment is incomplete, the next legal action is graph-intent alignment, not
+domain suitability, graph JSON initialization, source landscape discovery, or
+type discovery.
+
 The core rule is:
 
 ```text
@@ -1783,6 +1838,7 @@ The type graph must be populated before the fiber graph.
 Required order:
 
 ```text
+graph intent alignment
 domain suitability
 graph JSON initialization
 type set discovery
@@ -1794,6 +1850,21 @@ type edge review and freeze
 type edge field discovery for each frozen edge type
 type graph ready gate
 ```
+
+### 10.0 Graph Intent Alignment
+
+Confirm or read the graph-intent contract before source or graph-population
+work. The contract must define the domain lens, supplied or inferred examples,
+negative scope, competency questions, confirmation status, confirmation policy,
+and downstream gate.
+
+Type, field, relation, instance, and edge candidates discovered outside the
+contract must be rejected or written to a frontier. They must not count toward
+accepted graph targets merely because they fit the broad domain label.
+
+If the graph intent is missing, ambiguous, contradicted by examples, or awaiting
+human confirmation, stop with the smallest graph-intent failure code instead of
+continuing into source/type discovery.
 
 ### 10.1 Domain Suitability
 
@@ -1842,6 +1913,8 @@ alternatives, stop with `type_diversity_report_missing`.
 For each requested type candidate:
 
 - inspect allowed sources or supplied evidence;
+- record `graph_intent_fit` or `supported_competency_questions`;
+- record `positive_example_similarity`, `negative_scope_check`, and `accept_or_frontier_reason`;
 - propose one type node;
 - verify that the candidate is an ordinary domain entity type, not a source
   taxonomy class, schema category, provenance/evidence class, source-system
@@ -2756,9 +2829,10 @@ over unsupported `accepted` records.
 ## 14.5 Source Landscape And Joint Population Gates
 
 Before target-scale population in ordinary `MAKE-GRAPH`, verify the generated
-source landscape and joint population artifacts:
+graph-intent, source landscape, and joint population artifacts:
 
 ```text
+runs/<run_id>/reports/graph_intent_contract.md
 runs/<run_id>/reports/source_landscape_map.md
 runs/<run_id>/reports/source_family_registry.md
 runs/<run_id>/source_adapter_candidate_frontier.md
@@ -2768,7 +2842,9 @@ runs/<run_id>/reports/endpoint_reservation_plan.md
 ```
 
 The source landscape map must distinguish source families from adapters,
-endpoints, and records. Multiple endpoints or mirrors of one public knowledge
+endpoints, and records. It must also record `intent_relevance`,
+`supported_competency_questions`, `supported_type_or_relation_classes`, and
+`out_of_scope_reason` where those fields affect source selection. Multiple endpoints or mirrors of one public knowledge
 base count as one source family. If all semantic work depends on one source
 family and no `single_authoritative_source_family_exception` is logged, stop
 with `source_family_monoculture` before accepting target-scale semantic
@@ -3205,6 +3281,11 @@ For graph-build runs, raw counts are not sufficient. The completion log must
 also show:
 
 ```text
+graph_intent_status == confirmed OR graph_intent_status == explicitly_authorized_inference
+accepted_type_nodes_match_graph_intent == true
+accepted_type_edges_match_graph_intent == true
+accepted_fiber_nodes_match_graph_intent == true
+accepted_fiber_edges_match_graph_intent == true
 type_diversity_gate_result == passed
 base_entity_type_admission_gate_result == passed
 query_derived_type_rejection_gate_result == passed
@@ -3375,6 +3456,10 @@ or semantic failures whose declared recovery ladder is exhausted.
 Stop immediately if:
 
 - required bundle files are missing;
+- graph-intent contract is missing for ordinary `MAKE-GRAPH`;
+- graph-intent contract has a non-passing status;
+- graph-intent downstream gate is missing;
+- a source, type, edge, instance, or fiber edge is accepted despite failing the graph-intent gate;
 - run contract completeness is absent or not `complete`;
 - `manifest.ordered_loop_specs` is missing;
 - required loop-spec headings are missing;
@@ -3768,6 +3853,8 @@ manual step-through or debugging.
 The fixture should prove:
 
 - missing bundle files are detected;
+- missing graph-intent contract is detected for ordinary `MAKE-GRAPH`;
+- unresolved graph-intent status stops before source/type discovery;
 - incomplete run contracts are detected;
 - missing loop-spec headings are detected;
 - path reconciliation mismatches are detected;

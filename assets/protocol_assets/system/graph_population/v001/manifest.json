@@ -16,7 +16,8 @@
   },
   "trigger_phrases": {
     "generate_bundle": "GENERATE-BUNDLE",
-    "execute_bundle": "EXECUTE-BUNDLE"
+    "execute_bundle": "EXECUTE-BUNDLE",
+    "make_graph": "MAKE-GRAPH"
   },
   "generated_bundle_contract": {
     "bundle_root_pattern": "assets/protocol_assets/bundles/<domain_slug>/<protocol_id>",
@@ -58,6 +59,7 @@
     "required_make_graph_artifacts": [
       "control_loop_plan.md",
       "runs/<run_id>/reports/generated_bundle_acceptance_report.md",
+      "runs/<run_id>/reports/graph_intent_contract.md",
       "runs/<run_id>/reports/source_landscape_map.md",
       "runs/<run_id>/reports/source_family_registry.md",
       "runs/<run_id>/source_adapter_candidate_frontier.md",
@@ -73,7 +75,11 @@
       "generated_code_runtime_rejected",
       "domain_membership_predicates_required",
       "type_field_richness_required_beyond_source_adapter_fields",
-      "joint_population_feasibility_required_before_completion"
+      "joint_population_feasibility_required_before_completion",
+      "graph_intent_contract_present",
+      "graph_intent_alignment_loop_precedes_source_and_type_discovery",
+      "graph_intent_downstream_gate_required",
+      "semantic_acceptance_checks_graph_intent_fit"
     ]
   },
   "graph_contract": {

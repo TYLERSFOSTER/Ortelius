@@ -6,12 +6,17 @@
 
 Ortelius is used by pointing Codex at the graph-population protocol schema,
 usually with a `MAKE-GRAPH` request. Codex then creates a generated protocol
-bundle, executes bounded graph-population actions through repo-local Markdown
-and JSON control surfaces, and writes candidate typed/fibered graph JSON.
+bundle, records graph intent for broad domains, executes bounded graph-population
+actions through repo-local Markdown and JSON control surfaces, and writes
+candidate typed/fibered graph JSON.
 
 The Python package does not call Codex or crawl sources by itself. It loads,
 validates, inspects, and materializes graph JSON produced by the protocol
 workflow.
+
+For broad `MAKE-GRAPH` domains, require a graph-intent contract or explicit
+infer-and-proceed authorization before treating source discovery, type discovery,
+edge discovery, or record counts as graph-population progress.
 
 ## Core Context
 

@@ -15,7 +15,23 @@ as the graph-build request compilation schema.
 
 Make graph on domain: <domain>, with <N> node types and <K> instances of each
 type, and then <E> edge types and <J> instances of each.
+
+graph_intent:
+  domain_lens: <optional modeling lens>
+  positive_type_examples:
+    - <optional>
+  positive_relation_examples:
+    - <optional>
+  negative_scope:
+    - <optional>
+  competency_questions:
+    - <optional>
 ```
+
+If the domain is broad and no graph intent is supplied, Codex must pause to
+infer or confirm the graph intent before graph-building loops begin. The domain
+label says where the graph lives; the graph-intent contract says what kind of
+graph is being built.
 
 If you only want Codex to create the protocol bundle and stop before population,
 tell Codex:
@@ -58,16 +74,20 @@ flowchart TD
   B -->|"MAKE-GRAPH or clear plain-language graph request"| D["Compile graph_build_target"]
   B -->|"EXECUTE-BUNDLE"| E["Control/executor phase"]
 
-  D --> C
+  D --> D1["Infer or confirm graph intent"]
+  D1 --> D2["Write runs/<run_id>/reports/graph_intent_contract.md"]
+  D2 --> C
 
   C --> C1["Create or repair protocol_root under assets/protocol_assets/bundles/"]
   C1 --> C2["Write manifest.json"]
   C2 --> C3["Write graph_population_protocol.md"]
-  C3 --> C4["Write mandatory control_loop_plan.md for MAKE-GRAPH"]
+  C3 --> C3A["MAKE-GRAPH: record graph_intent metadata and contract path"]
+  C3A --> C4["Write mandatory control_loop_plan.md for MAKE-GRAPH"]
   C4 --> C5["Write loop_specs/*.md"]
   C5 --> C6["Initialize candidate graph JSON files"]
   C6 --> C7["Initialize run artifacts: structured cursor, initialized execution_log, source_batch_plan, reports, source_batches, batch_packets, tool_outputs"]
-  C7 --> C7A["MAKE-GRAPH: initialize source landscape map, source family registry, adapter frontier, and source strategy log"]
+  C7 --> C7I["MAKE-GRAPH: initialize graph_intent_contract.md"]
+  C7I --> C7A["MAKE-GRAPH: initialize source landscape map, source family registry, adapter frontier, and source strategy log"]
   C7A --> C7B["MAKE-GRAPH: initialize joint population feasibility and endpoint reservation plans"]
   C7B --> C8["Run generated-bundle acceptance checks"]
   C8 --> C9["Write runs/<run_id>/reports/generated_bundle_acceptance_report.md"]
@@ -81,7 +101,9 @@ flowchart TD
   E2 --> E3["Verify run_contract_completeness"]
   E3 -->|"incomplete"| S
   E3 --> E4["Reconcile graph paths and inspect current graph JSON state"]
-  E4 --> E4A{"MAKE-GRAPH source landscape and joint population control surfaces valid?"}
+  E4 --> E4I{"MAKE-GRAPH graph intent contract valid?"}
+  E4I -->|"no"| S
+  E4I -->|"yes"| E4A{"MAKE-GRAPH source landscape and joint population control surfaces valid?"}
   E4A -->|"no"| S
   E4A -->|"yes"| E5["Derive next legal bounded action from manifest order, loop spec, cursor, log, and repo reality"]
   E5 --> E6["Execute one Markdown-authorized action"]
@@ -221,7 +243,96 @@ because the failure is terminal, or present and explicitly exhausted.
 
 
 
-### 0.0.2.2 Source Landscape, Domain Membership, And Joint Planning Directive
+### 0.0.2.2 Graph Intent Alignment Directive
+
+For ordinary `MAKE-GRAPH`, a domain label plus target counts is not a complete
+graph specification. A broad label such as a city, institution, discipline,
+industry, or cultural field can support many incompatible graph models.
+
+Before source landscape discovery, type discovery, field discovery, edge
+discovery, instance population, or edge population, this schema must cause
+Codex to infer or confirm graph intent and write the repo-local contract:
+
+```text
+runs/<run_id>/reports/graph_intent_contract.md
+```
+
+The graph-intent contract must contain these fields or visibly initialized
+sections:
+
+```text
+domain_label
+domain_lens
+positive_type_examples
+positive_relation_examples
+positive_instance_examples
+negative_type_examples
+negative_relation_examples
+negative_scope
+competency_questions
+inferred_candidate_lenses
+chosen_lens
+confirmation_status
+intent_confirmation_policy
+downstream_gate
+```
+
+The governing distinction is:
+
+```text
+domain_label tells Codex where the graph lives.
+graph_intent_contract tells Codex what kind of graph is being built.
+```
+
+Examples are specification evidence. They are not automatically type nodes,
+fiber nodes, or graph records to write. Competency questions are functional
+requirements for what the graph should be able to answer. Negative examples
+and negative scope define what must be routed to a frontier or rejected.
+
+Allowed graph-intent confirmation policies are:
+
+```text
+user_supplied_confirmed
+infer_and_confirm
+infer_and_proceed_explicitly_authorized
+needs_human_confirmation
+```
+
+Passing graph-intent statuses are only:
+
+```text
+graph_intent_status: confirmed
+graph_intent_status: explicitly_authorized_inference
+confirmation_status: confirmed
+confirmation_status: explicitly_authorized_inference
+```
+
+Non-passing statuses include:
+
+```text
+graph_intent_status: missing
+graph_intent_status: ambiguous
+graph_intent_status: needs_human_confirmation
+graph_intent_status: contradicted_by_examples
+```
+
+If the invocation supplies a `domain_lens`, sufficient examples, or competency
+questions, Codex may compile the graph-intent contract directly and record
+`confirmation_status: confirmed` when the supplied intent is internally
+consistent. If the domain is broad and graph intent is missing, Codex must ask
+a bounded alignment question or propose two to four candidate lenses in guided
+or onboarding mode. Codex may infer and proceed without a human reply only when
+the prompt explicitly authorizes `infer_graph_intent_and_proceed: true` or an
+equivalent instruction.
+
+The generated downstream gate must say that every source family, type node,
+type field, type edge, relation field, fiber node, and fiber edge must fit the
+graph-intent contract or be written to a frontier/rejection report instead of
+accepted graph JSON. A missing, unresolved, or contradicted graph intent is a
+setup blocker, not permission to improvise from source salience or model
+memory.
+
+### 0.0.2.3 Source Landscape, Domain Membership, And Joint Planning Directive
 
 For ordinary `MAKE-GRAPH`, Codex must not move directly from a queryable source
 adapter to graph population. The generated workflow must first separate three
@@ -338,6 +449,7 @@ MAKE-GRAPH
   Treat as a front-door macro.
   Parse the short graph request.
   Compile graph_build_target.
+  Infer or confirm graph intent and write graph_intent_contract.md.
   Default source policy is live_lookup_required_and_authorized unless the
   invocation explicitly says no_live_lookup, bundle_only, scaffold_only,
   smoke_only, or no_population.
@@ -349,6 +461,8 @@ MAKE-GRAPH
 Plain-language request to make/populate/build a graph
   If counts and domain are clear, treat as MAKE-GRAPH even without the literal
   trigger word.
+  If graph intent is absent and the domain is broad, enter graph-intent
+  alignment before source or graph-population loops.
   If counts or domain are ambiguous, ask only the blocking clarification.
 
 EXECUTE-BUNDLE
@@ -380,19 +494,21 @@ For `MAKE-GRAPH`:
 
 ```text
 1. parse the request into graph_build_target;
-2. set default_source_policy_for_make_graph: live_lookup_required_and_authorized unless explicitly forbidden;
-3. identify source-scope requirements and source boundaries;
-4. create the generated bundle, including explicit Markdown loop surfaces;
-5. run generated-bundle acceptance checks;
-6. stop if the bundle is incomplete;
-7. load the control protocol and hand off through repo-local artifacts with
+2. infer or confirm graph intent;
+3. write runs/<run_id>/reports/graph_intent_contract.md;
+4. set default_source_policy_for_make_graph: live_lookup_required_and_authorized unless explicitly forbidden;
+5. identify source-scope requirements and source boundaries under the graph-intent contract;
+6. create the generated bundle, including explicit Markdown loop surfaces;
+7. run generated-bundle acceptance checks;
+8. stop if the bundle is incomplete;
+9. load the control protocol and hand off through repo-local artifacts with
    continue_until: graph_build_targets_met;
-8. execute until semantic graph targets are met, the human stops, an explicit
-   execution budget pauses the run, or a real logged blocker fires;
-9. continue only through repo-local handoff artifacts, not memory.
+10. execute until semantic graph targets are met, the human stops, an explicit
+    execution budget pauses the run, or a real logged blocker fires;
+11. continue only through repo-local handoff artifacts, not memory.
 ```
 
-For ordinary `MAKE-GRAPH`, steps such as domain suitability, graph JSON
+For ordinary `MAKE-GRAPH`, steps such as graph-intent alignment, domain suitability, graph JSON
 initialization, source-scope setup, source-batch planning, or validation of
 empty graph files are setup prerequisites. They are not completed graph actions
 and must not be the final action unless they fail with a precise blocker.
@@ -778,6 +894,35 @@ In `guided` and `onboarding` mode, before moving from bundle generation to
 graph population, summarize what was created and ask for confirmation unless
 the human explicitly requested automatic continuation.
 
+### Graph Intent Alignment Questions
+
+When the domain label is broad and graph intent is missing, use a bounded
+alignment prompt before generating graph-shaping loops. In guided or onboarding
+mode, say in plain language:
+
+```text
+The domain label is broad enough to support several graph models. Before I
+build, I need to lock the graph intent.
+```
+
+Then propose two to four candidate lenses or ask for examples. Each candidate
+lens must be domain-agnostic in form and domain-specific only as an instance of
+the current request. Offer the human these response paths:
+
+```text
+choose one candidate lens
+edit or combine candidate lenses
+provide positive node/edge/instance examples
+provide negative scope or negative examples
+provide competency questions
+explicitly authorize infer_graph_intent_and_proceed
+```
+
+For expert mode, if the invocation already supplies `domain_lens`, examples,
+negative scope, or competency questions sufficient to write the contract, do
+not overexplain. Write the graph-intent contract and continue. Examples shape
+graph intent; they are not automatically records to write.
+
 ## 0.4 Graph Build Request Compilation Contract
 
 The system must support short graph-build requests.
@@ -791,7 +936,8 @@ of each type, and then 5 edge types and 10 instances of each.
 
 Codex must not treat that as a vague brainstorming prompt. It must compile the
 sentence into an explicit graph-build target contract before generating the
-bundle.
+bundle. If the domain label is broad, Codex must also infer or confirm graph
+intent and write a graph-intent contract before source/type/edge loops begin.
 
 This front-door compilation does not replace `GENERATE-BUNDLE` and
 `EXECUTE-BUNDLE`. It binds them together. The generated bundle is still the
@@ -803,14 +949,15 @@ For a `MAKE-GRAPH` invocation, Codex must run this macro sequence:
 ```text
 1. parse the short request;
 2. compile graph_build_target;
-3. set source policy to live_lookup_required_and_authorized unless explicitly forbidden;
-4. run GENERATE-BUNDLE under this schema;
-5. run generated-bundle acceptance checks;
-6. stop if the generated bundle is incomplete;
-7. hand off only through repo-local generated artifacts;
-8. run EXECUTE-BUNDLE under graph_population_control_protocol.md with
+3. infer or confirm graph intent and write graph_intent_contract.md;
+4. set source policy to live_lookup_required_and_authorized unless explicitly forbidden;
+5. run GENERATE-BUNDLE under this schema;
+6. run generated-bundle acceptance checks;
+7. stop if the generated bundle is incomplete;
+8. hand off only through repo-local generated artifacts;
+9. run EXECUTE-BUNDLE under graph_population_control_protocol.md with
    continue_until: graph_build_targets_met;
-9. execute the explicit Markdown loop surface until semantic graph targets are
+10. execute the explicit Markdown loop surface until semantic graph targets are
    met, the human stops, an explicit execution budget pauses the run, or a real
    logged blocker fires.
 ```
@@ -889,6 +1036,14 @@ The compiled contract must include:
     "label": "Example domain",
     "slug": "example_domain"
   },
+  "graph_intent": {
+    "required": true,
+    "contract_path": "runs/run_001/reports/graph_intent_contract.md",
+    "domain_lens": "<domain lens>",
+    "confirmation_status": "confirmed",
+    "intent_confirmation_policy": "user_supplied_confirmed",
+    "downstream_gate": "all graph-shaping candidates must fit graph_intent_contract"
+  },
   "type_graph_targets": {
     "node_type_count": 10,
     "edge_type_count": 5
@@ -906,11 +1061,14 @@ The compiled contract must include:
 If the sentence contains ambiguous counts, Codex may ask a bounded clarification
 question. If the counts are clear, Codex must derive them without asking.
 
-The generated manifest must store the compiled contract under
-`graph_build_target`. A bundle generated from a graph-build request is
-incomplete if `graph_build_target` is missing, if the expected fiber counts
-cannot be derived, or if the generated loop specs do not expose those targets
-as loop completion conditions.
+The generated manifest must store the compiled target contract under
+`graph_build_target` and the intent contract metadata under `graph_intent`. A
+bundle generated from a graph-build request is incomplete if
+`graph_build_target` is missing, if `graph_intent` is missing, if the
+`graph_intent_contract.md` path is missing, if graph-intent status is
+non-passing, if the expected fiber counts cannot be derived, or if the
+generated loop specs do not expose those targets and the graph-intent gate as
+loop completion conditions.
 
 ### Control Loop Plan Contract
 
@@ -983,6 +1141,18 @@ that no graph-build target is being executed. If a graph-build target exists,
 Minimum shape:
 
 ```text
+GraphIntentAlignment.Domain.ExampleSet.InferOrConfirmIntent:
+  iterator: domain label plus supplied examples, negative scope, and competency questions
+  writes: runs/<run_id>/reports/graph_intent_contract.md
+  completion: graph intent confirmed, explicitly authorized inference recorded, or graph-intent blocker fires
+
+GraphIntentAlignment.Recovery.RequestPositiveExamples:
+GraphIntentAlignment.Recovery.RequestNegativeScope:
+GraphIntentAlignment.Recovery.ProposeCandidateLenses:
+GraphIntentAlignment.Recovery.RequestCompetencyQuestions:
+  writes: runs/<run_id>/reports/graph_intent_contract.md and execution log
+  completion: enough information exists to confirm graph intent or stop with graph_intent_unconfirmed
+
 SourceLandscapeDiscovery.Domain.SourceBatch.MapSourceFamilies:
   target_count: enough source families to support type, field, edge, instance, and edge-evidence discovery
   writes: runs/<run_id>/reports/source_landscape_map.md, runs/<run_id>/reports/source_family_registry.md, runs/<run_id>/source_adapter_candidate_frontier.md, runs/<run_id>/reports/source_strategy_decision_log.md
@@ -1406,7 +1576,7 @@ The semantic acceptance report must say whether unmet targets are unmet because
 recovery is still available, recovery was exhausted, source policy forbids more
 work, or a human scope decision is required.
 
-### 0.0.2.2 Zero-Context Markdown Semantic Acceptance Gate Directive
+### 0.0.2.4 Zero-Context Markdown Semantic Acceptance Gate Directive
 
 A fresh Codex instance must be able to understand and execute semantic
 acceptance from repo-local Markdown alone. Do not assume any prior conversation,
@@ -1423,7 +1593,7 @@ child loop, and Codex must create that Markdown loop surface instead. The gate
 must be represented in the generated workflow program as:
 
 ```text
-loop_specs/17_semantic_acceptance_gate.md
+loop_specs/18_semantic_acceptance_gate.md
 runs/<run_id>/reports/semantic_acceptance_report.md
 ```
 
@@ -1454,6 +1624,7 @@ The semantic acceptance report must contain these explicit audit tables, not
 only summary counters:
 
 ```text
+Graph Intent Alignment Review Table
 Type Node Semantic Review Table
 Type Edge Semantic Review Table
 Primitive Relation Family Summary
@@ -1834,6 +2005,17 @@ interaction_level
 diagnostic_verbosity
 domain_label
 domain_slug
+domain_lens
+graph_intent
+positive_type_examples
+positive_relation_examples
+positive_instance_examples
+negative_type_examples
+negative_relation_examples
+negative_scope
+competency_questions
+intent_confirmation_policy
+infer_graph_intent_and_proceed
 protocol_id
 protocol_root
 type_graph_id
@@ -1914,23 +2096,24 @@ shape:
   graph_population_protocol.md
   control_loop_plan.md
   loop_specs/
-    01_domain_suitability.md
-    02_graph_json_initialization.md
-    03_type_set_discovery.md
-    04_type_set_review.md
-    05_type_field_discovery_for_each_type.md
-    06_type_field_review.md
-    07_type_edge_discovery_from_enriched_types.md
-    08_type_edge_review.md
-    09_type_edge_field_discovery_for_each_edge_type.md
-    10_type_graph_ready_gate.md
-    11_instance_target_selection.md
-    12_instance_discovery.md
-    13_instance_field_completion.md
-    14_edge_instance_discovery.md
-    15_edge_instance_field_completion.md
-    16_fiber_graph_review.md
-    17_semantic_acceptance_gate.md
+    01_graph_intent_alignment.md
+    02_domain_suitability.md
+    03_graph_json_initialization.md
+    04_type_set_discovery.md
+    05_type_set_review.md
+    06_type_field_discovery_for_each_type.md
+    07_type_field_review.md
+    08_type_edge_discovery_from_enriched_types.md
+    09_type_edge_review.md
+    10_type_edge_field_discovery_for_each_edge_type.md
+    11_type_graph_ready_gate.md
+    12_instance_target_selection.md
+    13_instance_discovery.md
+    14_instance_field_completion.md
+    15_edge_instance_discovery.md
+    16_edge_instance_field_completion.md
+    17_fiber_graph_review.md
+    18_semantic_acceptance_gate.md
   candidate_graphs/
     <type_graph_id>/
       nodes.json
@@ -1949,6 +2132,7 @@ shape:
         <batch_id>.md
       reports/
         generated_bundle_acceptance_report.md
+        graph_intent_contract.md
         semantic_acceptance_report.md
         design_reconnaissance_report.md
         type_set_discovery_report.md
@@ -2010,6 +2194,14 @@ Minimum candidate shape:
     },
     "existing_graph_paths_checked": [],
     "path_migration_policy": "stop_for_path_reconciliation"
+  },
+  "graph_intent": {
+    "required": true,
+    "contract_path": "runs/run_001/reports/graph_intent_contract.md",
+    "domain_lens": "<domain lens>",
+    "confirmation_status": "confirmed",
+    "intent_confirmation_policy": "user_supplied_confirmed",
+    "downstream_gate": "all graph-shaping candidates must fit graph_intent_contract"
   },
   "graph_build_target": {
     "front_door_mode": "MAKE-GRAPH",
@@ -2098,7 +2290,7 @@ Minimum candidate shape:
     "loop_specs/14_edge_instance_discovery.md",
     "loop_specs/15_edge_instance_field_completion.md",
     "loop_specs/16_fiber_graph_review.md",
-    "loop_specs/17_semantic_acceptance_gate.md"
+    "loop_specs/18_semantic_acceptance_gate.md"
   ],
   "runs": {
     "default_run_id": "run_001",
@@ -2109,6 +2301,7 @@ Minimum candidate shape:
     "batch_packet_root": "runs/run_001/batch_packets",
     "report_root": "runs/run_001/reports",
     "generated_bundle_acceptance_report": "runs/run_001/reports/generated_bundle_acceptance_report.md",
+    "graph_intent_contract": "runs/run_001/reports/graph_intent_contract.md",
     "semantic_acceptance_report": "runs/run_001/reports/semantic_acceptance_report.md",
     "tool_output_root": "runs/run_001/tool_outputs"
   },
@@ -2143,6 +2336,8 @@ Minimum candidate shape:
     "required_loop_spec_headings_present": true,
     "validation_defined": true,
     "source_boundaries_defined": true,
+    "graph_intent_contract_defined": true,
+    "graph_intent_downstream_gate_defined": true,
     "type_graph_ready_gate_defined": true,
     "type_set_discovery_project_defined": true,
     "type_set_freeze_gate_defined": true,
@@ -2208,6 +2403,7 @@ The run contract is complete only if:
 - all loop specs define validation as a command, named checklist, or
   unavailable-stop rule;
 - path reconciliation has been recorded;
+- graph-intent alignment and graph-intent contract generation are defined before type set discovery;
 - type set discovery and type set review/freeze are defined;
 - type-field discovery iterates over the frozen type set, one type at a time;
 - type-field review records complete, deferred, or blocked field discovery for
@@ -4350,7 +4546,7 @@ and which shallow states are forbidden as pass states. For ordinary
 generic seed contracts as semantic completion.
 
 The final generated loop spec, normally
-`loop_specs/17_semantic_acceptance_gate.md`, must be a standalone Markdown
+`loop_specs/18_semantic_acceptance_gate.md`, must be a standalone Markdown
 acceptance program. It must restate enough vocabulary for a zero-context Codex
 to run it without earlier conversation. At minimum, it must define:
 
@@ -4420,6 +4616,9 @@ It must include:
 - candidate graph root;
 - path reconciliation result;
 - source policy;
+- graph intent declaration and graph-intent contract path;
+- positive/negative examples and competency question summary when supplied;
+- downstream graph-intent gate;
 - design reconnaissance vs population crawl boundary;
 - staged research project order;
 - generated loop-spec index;
@@ -4461,7 +4660,12 @@ Compatibility requires:
 
 - exactly one ordered run sequence;
 - `manifest.json` contains the canonical `ordered_loop_specs` execution spine;
+- for ordinary `MAKE-GRAPH`, graph-intent alignment is represented before source/type loops;
+- for ordinary `MAKE-GRAPH`, `runs/<run_id>/reports/graph_intent_contract.md` exists;
+- for ordinary `MAKE-GRAPH`, manifest `graph_intent` records the contract path and downstream gate;
 - explicit loop specs for every graph-population pass;
+- graph-intent alignment loop before source/type/field/edge/population loops;
+- graph-intent report path and downstream gate;
 - a generated control loop plan with dotted paths and active loop variables;
 - staged project gates for type-set freeze, type-field completion, edge-set
   freeze, edge-field completion, and type graph readiness;
@@ -4706,12 +4910,18 @@ A generated protocol bundle is acceptable only if:
 - if `front_door_mode` is `MAKE-GRAPH`, `control_loop_plan.md` exists as a
   dedicated generated file and is referenced by the manifest;
 - if `front_door_mode` is `MAKE-GRAPH`, the run initializes
+  `runs/<run_id>/reports/graph_intent_contract.md`,
   `runs/<run_id>/reports/source_landscape_map.md`,
   `runs/<run_id>/reports/source_family_registry.md`,
   `runs/<run_id>/source_adapter_candidate_frontier.md`,
   `runs/<run_id>/reports/source_strategy_decision_log.md`,
   `runs/<run_id>/reports/joint_population_feasibility_plan.md`, and
   `runs/<run_id>/reports/endpoint_reservation_plan.md`;
+- if `front_door_mode` is `MAKE-GRAPH`, manifest `graph_intent` records
+  `contract_path`, `domain_lens`, `confirmation_status`,
+  `intent_confirmation_policy`, and `downstream_gate`;
+- if `front_door_mode` is `MAKE-GRAPH`, the graph-intent contract is confirmed
+  or explicitly authorized for inference before source/type loops begin;
 - if `front_door_mode` is `MAKE-GRAPH`, the source landscape map distinguishes
   source family, source adapter, source endpoint, and source record;
 - if `front_door_mode` is `MAKE-GRAPH`, a single source family cannot satisfy
@@ -4767,6 +4977,7 @@ A generated protocol bundle is acceptable only if:
 - instance discovery writes only nodes that satisfy both type membership and
   domain membership evidence requirements;
 - source query row membership alone is not enough to accept a fiber node;
+- graph-intent alignment is defined before type-set discovery;
 - type-set discovery and type-set freeze are defined as separate loop stages;
 - type-set discovery defines candidate-pool and type-diversity gates;
 - type-set discovery defines base entity type admission and query-derived type

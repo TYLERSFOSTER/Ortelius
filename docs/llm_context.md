@@ -25,7 +25,21 @@ as the graph-build request compilation schema.
 
 Make graph on domain: <domain>, with <N> node types and <M> instances of each
 type, and then <E> edge types and <K> instances of each.
+
+graph_intent:
+  domain_lens: <optional modeling lens>
+  positive_type_examples:
+    - <optional>
+  positive_relation_examples:
+    - <optional>
+  negative_scope:
+    - <optional>
+  competency_questions:
+    - <optional>
 ```
+
+For broad domains, graph intent is the modeling-lens contract that tells Codex
+what kind of graph to build before source/type/edge loops begin.
 
 ## What Ortelius Does Not Do
 
@@ -104,6 +118,7 @@ candidate_graphs/
 runs/<run_id>/cursor.json
 runs/<run_id>/execution_log.md
 runs/<run_id>/reports/
+  graph_intent_contract.md
 source_batches/
 batch_packets/
 tool_outputs/
@@ -209,6 +224,7 @@ When assisting with Ortelius:
 - Treat the protocol docs as operational documents, not background prose.
 - Treat generated bundle files as run authority once a bundle exists.
 - Do not invent hidden helper scripts as the workflow driver.
+- Do not infer graph intent silently for broad domains unless the prompt explicitly authorizes infer-and-proceed.
 - Do not claim the Python package performs autonomous crawling.
 - Do not commit generated domain bundles by default.
 - Keep examples domain-neutral unless the user explicitly requests a domain.
