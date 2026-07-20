@@ -130,6 +130,108 @@ If semantic acceptance is not passed, final narration must begin by saying the
 graph is not complete. Raw counts, structural validation success, or generated
 file paths may follow only as supporting detail.
 
+### RowBackedSemanticAcceptanceGate
+
+For ordinary `MAKE-GRAPH`, semantic acceptance is a row-backed Markdown gate.
+The executor must not accept a pass/fail declaration, source-query count, raw
+graph JSON count, or generated script output as semantic completion unless the
+required run reports contain inspectable rows.
+
+Before setting `semantic_acceptance_status: passed`, verify:
+
+```text
+runs/<run_id>/reports/semantic_plan_authority_report.md
+runs/<run_id>/reports/source_probe_event_ledger.md
+runs/<run_id>/reports/type_candidate_review.md
+runs/<run_id>/reports/type_field_discovery_report.md
+runs/<run_id>/reports/edge_candidate_review.md
+runs/<run_id>/reports/edge_family_diversity_report.md
+runs/<run_id>/reports/edge_field_discovery_report.md
+runs/<run_id>/reports/domain_membership_boundary_report.md
+runs/<run_id>/reports/source_evidence_accounting_report.md
+runs/<run_id>/reports/label_quality_report.md
+runs/<run_id>/reports/semantic_sample_audit.md
+runs/<run_id>/reports/semantic_acceptance_report.md
+```
+
+The reports must contain rows, not only summaries. If a report says "sampled 90
+records and all passed" but does not list the sample rows, stop with
+`semantic_sample_rows_missing` or `semantic_sample_audit_self_certifying`.
+
+### GeneratedCode.NonAuthorityGate
+
+Generated helper code is allowed only for mechanical work authorized by prior
+Markdown. It may convert Markdown-authorized rows to JSON, normalize IDs, count
+records, validate shape, or run a source query already specified by a Markdown
+batch packet.
+
+Generated code must not contain or author semantic inventories, accepted type
+lists, accepted edge lists, source strategy, field discovery, domain membership
+judgments, acceptance decisions, target-filling policy, semantic sample pass
+decisions, or final completion status. If a `.tmp_*`, Python, shell, notebook,
+JavaScript, or other helper artifact contains the semantic plan, stop with
+`generated_code_semantic_authority_detected`.
+
+The executor must verify `generated_code_runtime_audit.md` and
+`semantic_plan_authority_report.md` before accepting any graph records produced
+by helper code.
+
+### SourceProbe.OrderGate
+
+Every source probe, source-adapter test, source-cache read, and source result
+import must have a row in `source_probe_event_ledger.md`. Each source event row
+must name the triggering Markdown artifact, triggering batch id, source family,
+source adapter, result artifact, and whether it was allowed by the current
+contract.
+
+Source events are legal only after graph intent, source reconnaissance, and the
+relevant batch packet have been materialized. If source probing occurred before
+Markdown authority existed, stop with `source_probe_before_markdown_authority`.
+Do not count premature source results; repeat them through a valid batch packet
+if recovery remains.
+
+### EdgeType.RelationFamilyDiversityGate
+
+Accepted edge types must represent primitive, domain-central relation families
+between concrete upstairs instances. They must not be query-derived,
+path-derived, co-membership, source-metadata, provenance, evidence, adapter, or
+domain-membership-support relations unless the graph intent explicitly requests
+such a graph.
+
+The executor must read `edge_candidate_review.md` and
+`edge_family_diversity_report.md` before freezing edge types and before final
+semantic acceptance. Inverse labels, endpoint variants, fallback alternates,
+and source-property variants must be collapsed into primitive relation
+families. If the accepted relation inventory is shallow or dominated by one
+family without a declared narrow graph intent, continue relation discovery or
+stop with `semantic_edge_family_diversity_unmet`.
+
+### FieldRichnessAndLabelQualityGates
+
+The executor must read `type_field_discovery_report.md`,
+`edge_field_discovery_report.md`, and `label_quality_report.md` before semantic
+completion. Type fields must be discovered through per-type loops after the
+type set is frozen. Edge fields must be discovered through per-edge-type loops
+after edge types are frozen.
+
+Generic source, provenance, identity, or review fields do not count as
+domain-descriptive or relation-descriptive richness. Opaque labels and
+source-id-only labels do not count toward semantic targets. If recovery remains,
+enter the relevant Markdown child loop; otherwise stop with
+`field_richness_limited`, `edge_field_completion_incomplete`, or
+`label_quality_limited`.
+
+### SourceEvidenceAccountingGate
+
+The executor must read `source_evidence_accounting_report.md` before semantic
+completion. Source families actually used for accepted records must be counted
+separately from source families that were merely available, listed as fallback,
+or used only for audit/recovery.
+
+Fallback availability is not evidence diversity. A single-source-family run can
+pass only when `single_authoritative_source_family_exception` is explicit,
+domain-intent-fit, and reviewed in the semantic sample audit.
+
 ## Corrected Soft Control Flow Diagram
 
 This diagram is the whole-system control flow. It is normative for both the

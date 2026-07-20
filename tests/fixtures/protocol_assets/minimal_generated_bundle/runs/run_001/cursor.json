@@ -9,6 +9,17 @@
   "completed_loop_ids": [],
   "completed_action_ids": [],
   "blocked_on": null,
+  "graph_intent_status": "not_applicable_for_generate_bundle_fixture",
+  "semantic_plan_authority_status": "initialized",
+  "source_probe_order_status": "initialized",
+  "type_field_richness_status": "initialized",
+  "edge_family_diversity_status": "initialized",
+  "domain_membership_boundary_status": "initialized",
+  "label_quality_status": "initialized",
+  "source_evidence_accounting_status": "initialized",
+  "semantic_sample_audit_status": "initialized",
+  "semantic_acceptance_status": "not_applicable_for_generate_bundle_fixture",
+  "next_legal_action": "EXECUTE-BUNDLE first legal action",
   "last_log_entry_id": null,
   "updated_at": null
 }

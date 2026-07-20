@@ -42,7 +42,15 @@ assets/protocol_assets/system/graph_population/v001/graph_population_control_pro
 The generated bundle must use declared graph IDs and must not assume any
 domain-specific graph names.
 
-Post-confirmation order for `MAKE-GRAPH`: after graph intent is confirmed or explicitly authorized, Codex must materialize `graph_intent_contract.md`, `control_loop_plan.md`, cursor/log state, and the source reconnaissance plan before any source probe. Source reconnaissance must be expressed in Markdown batch packets before execution. Generated helper code may only perform declared mechanical work and requires `generated_code_runtime_audit.md`; it must not decide semantic graph content. Accepted target counts mean accepted semantic records, not raw JSON records.
+Post-confirmation order for `MAKE-GRAPH`: after graph intent is confirmed or explicitly authorized, Codex must materialize `graph_intent_contract.md`, `semantic_plan_authority_report.md`, `source_probe_event_ledger.md`, `control_loop_plan.md`, cursor/log state, and the source reconnaissance plan before any source probe. Source reconnaissance must be expressed in Markdown batch packets before execution. Generated helper code may only perform declared mechanical work and requires `generated_code_runtime_audit.md`; it must not decide semantic graph content. Accepted target counts mean accepted semantic records, not raw JSON records.
+
+Generated bundles must initialize row-backed semantic report surfaces:
+`type_candidate_review.md`, `type_field_discovery_report.md`,
+`edge_candidate_review.md`, `edge_family_diversity_report.md`,
+`edge_field_discovery_report.md`, `domain_membership_boundary_report.md`,
+`source_evidence_accounting_report.md`, `label_quality_report.md`,
+`semantic_sample_audit.md`, and `semantic_acceptance_report.md`. These are
+Markdown control surfaces, not mirrors of hidden generated code.
 
 Front-door note for `MAKE-GRAPH`: a minimal prompt with only domain + target
 counts is valid and sufficient. If graph intent is missing and the domain is

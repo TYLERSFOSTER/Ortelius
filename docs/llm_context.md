@@ -52,6 +52,19 @@ Source reconnaissance is Markdown-first: Codex must materialize graph intent,
 write source plans and batch packets, and audit generated mechanical code before
 source results can shape graph records.
 
+Semantic acceptance is row-backed. For ordinary `MAKE-GRAPH`, a bundle must
+carry inspectable Markdown reports for semantic plan authority, source probe
+event order, type candidate review, type-specific field discovery, edge
+candidate review, edge-family diversity, edge-specific field discovery, domain
+membership boundaries, source evidence accounting, label quality, semantic
+sample audit, and accepted target reconciliation. Summary-only reports and raw
+counts do not satisfy graph completion.
+
+Generated helper code is mechanical only. It may convert, count, serialize, or
+validate Markdown-authorized rows, but it must not decide graph intent, source
+strategy, type inventory, edge inventory, field discovery, acceptance status,
+or completion.
+
 ## Graph Model
 
 Ortelius uses two graph IDs:

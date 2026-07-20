@@ -58,6 +58,15 @@ completion requires semantic acceptance: graph intent fit, source-backed domain
 membership, field sufficiency, pair-specific edge evidence, semantic sample
 audit, and accepted-versus-candidate target reconciliation. Candidate records
 can be useful frontier state, but they do not count toward requested targets.
+Semantic acceptance is row-backed: the generated bundle must include
+inspectable Markdown reports for type candidates, field discovery, edge
+families, domain membership, source evidence accounting, label quality, sample
+audit, and accepted target reconciliation. Structural validation can pass while
+semantic acceptance remains incomplete.
+
+Helper code may be used for mechanical conversion, counting, validation, or
+serialization from Markdown-authorized rows. It must not become the semantic
+workflow authority.
 
 ### Two Scales Of Control
 

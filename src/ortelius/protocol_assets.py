@@ -45,14 +45,24 @@ MAKE_GRAPH_REQUIRED_ARTIFACT_TEMPLATES = (
     "control_loop_plan.md",
     "runs/<run_id>/reports/generated_bundle_acceptance_report.md",
     "runs/<run_id>/reports/graph_intent_contract.md",
+    "runs/<run_id>/reports/semantic_plan_authority_report.md",
+    "runs/<run_id>/reports/source_probe_event_ledger.md",
     "runs/<run_id>/reports/source_reconnaissance_plan.md",
     "runs/<run_id>/reports/source_landscape_map.md",
     "runs/<run_id>/reports/source_family_registry.md",
     "runs/<run_id>/source_adapter_candidate_frontier.md",
     "runs/<run_id>/reports/source_adapter_recovery_plan.md",
     "runs/<run_id>/reports/source_strategy_decision_log.md",
+    "runs/<run_id>/reports/type_candidate_review.md",
+    "runs/<run_id>/reports/type_field_discovery_report.md",
+    "runs/<run_id>/reports/edge_candidate_review.md",
+    "runs/<run_id>/reports/edge_family_diversity_report.md",
+    "runs/<run_id>/reports/edge_field_discovery_report.md",
     "runs/<run_id>/reports/joint_population_feasibility_plan.md",
     "runs/<run_id>/reports/endpoint_reservation_plan.md",
+    "runs/<run_id>/reports/domain_membership_boundary_report.md",
+    "runs/<run_id>/reports/source_evidence_accounting_report.md",
+    "runs/<run_id>/reports/label_quality_report.md",
     "runs/<run_id>/reports/domain_membership_audit.md",
     "runs/<run_id>/reports/semantic_sample_audit.md",
     "runs/<run_id>/reports/generated_code_runtime_audit.md",
@@ -132,6 +142,188 @@ BATCH_PACKET_PLACEHOLDER_MARKERS = (
     "see report",
 )
 
+SEMANTIC_GATE_CURSOR_FIELDS = (
+    "active_loop_id",
+    "graph_intent_status",
+    "semantic_plan_authority_status",
+    "source_probe_order_status",
+    "type_field_richness_status",
+    "edge_family_diversity_status",
+    "domain_membership_boundary_status",
+    "label_quality_status",
+    "source_evidence_accounting_status",
+    "semantic_sample_audit_status",
+    "semantic_acceptance_status",
+    "next_legal_action",
+)
+
+SEMANTIC_ROW_REPORTS = {
+    "type_candidate_review.md": (
+        (
+            "candidate_type_id",
+            "candidate_label",
+            "source_family",
+            "source_adapter_id",
+            "domain_intent_fit",
+            "ordinary_entity_type",
+            "fiber_population_eligible",
+            "accepted_for_type_graph",
+        ),
+        "type_candidate_review_rows_missing",
+    ),
+    "type_field_discovery_report.md": (
+        (
+            "type_id",
+            "field_key",
+            "field_semantic_role",
+            "source_policy",
+            "domain_descriptive",
+            "identity_field",
+            "source_adapter_field",
+            "provenance_field",
+            "accepted",
+        ),
+        "type_field_discovery_rows_missing",
+    ),
+    "edge_candidate_review.md": (
+        (
+            "candidate_edge_type_id",
+            "source_type_id",
+            "target_type_id",
+            "primitive_relation_claim",
+            "relation_family",
+            "pair_specific_evidence_available",
+            "not_query_derived",
+            "not_domain_membership_evidence",
+            "not_source_metadata",
+            "accepted_for_type_graph",
+        ),
+        "edge_candidate_review_rows_missing",
+    ),
+    "edge_family_diversity_report.md": (
+        (
+            "relation_family",
+            "accepted_edge_type_count",
+            "domain_centrality_rationale",
+            "dominance_risk",
+            "domain_membership_evidence_overlap",
+            "decision",
+        ),
+        "edge_family_diversity_rows_missing",
+    ),
+    "edge_field_discovery_report.md": (
+        (
+            "edge_type_id",
+            "field_key",
+            "field_semantic_role",
+            "relation_descriptive",
+            "pair_evidence_field",
+            "provenance_field",
+            "accepted",
+        ),
+        "edge_field_discovery_rows_missing",
+    ),
+    "domain_membership_boundary_report.md": (
+        (
+            "record_or_candidate_id",
+            "label",
+            "record_kind",
+            "membership_claim",
+            "evidence_kind",
+            "domain_intent_fit",
+            "accepted_as_domain_member",
+        ),
+        "domain_membership_boundary_rows_missing",
+    ),
+    "source_evidence_accounting_report.md": (
+        (
+            "source_family",
+            "source_adapter_id",
+            "declared_role",
+            "accepted_fiber_nodes_supported",
+            "accepted_fiber_edges_supported",
+            "fallback_only",
+            "decision",
+        ),
+        "source_evidence_accounting_rows_missing",
+    ),
+    "label_quality_report.md": (
+        (
+            "record_id",
+            "record_kind",
+            "type_id",
+            "label",
+            "opaque_label",
+            "source_id_only",
+            "human_readable",
+            "accepted_for_semantic_count",
+        ),
+        "label_quality_rows_missing",
+    ),
+    "semantic_sample_audit.md": (
+        (
+            "sample_id",
+            "record_id",
+            "record_kind",
+            "type_id_or_edge_type_id",
+            "label",
+            "source_url_or_artifact",
+            "judgment",
+            "failure_reason",
+        ),
+        "semantic_sample_rows_missing",
+    ),
+}
+
+SOURCE_EVENT_LEDGER_COLUMNS = (
+    "event_id",
+    "sequence",
+    "event_kind",
+    "source_family",
+    "source_adapter_id",
+    "source_endpoint_or_artifact",
+    "triggering_markdown_artifact",
+    "triggering_batch_id",
+    "allowed_by_contract",
+    "result_artifact_path",
+)
+
+GENERATED_CODE_AUDIT_COLUMNS = (
+    "code_artifact_path",
+    "used",
+    "purpose",
+    "mechanical_only",
+    "semantic_decisions_present",
+    "markdown_inputs_read",
+    "graph_outputs_written",
+    "reports_written",
+    "authority_decision",
+)
+
+GENERATED_CODE_FILE_SUFFIXES = (".py", ".sh", ".js", ".mjs", ".ipynb")
+
+GENERATED_CODE_SEMANTIC_PATTERNS = (
+    "TYPE_SPECS",
+    "EDGE_SPECS",
+    "semantic_acceptance_status",
+    "semantic_acceptance_report",
+    "accepted_type",
+    "accepted_edge",
+    "field_discovery",
+    "domain_membership",
+    "source_strategy",
+    "graph_build_targets_met",
+)
+
+TABLE_PLACEHOLDER_MARKERS = (
+    "todo",
+    "tbd",
+    "placeholder",
+    "see report",
+    "see generated output",
+    "see execution log",
+)
+
 SOURCE_OR_IDENTITY_FIELD_NAMES = frozenset(
     {
         "id",
@@ -155,6 +347,14 @@ SOURCE_OR_IDENTITY_FIELD_NAMES = frozenset(
         "external_id",
         "external_url",
         "type_membership_basis",
+        "domain_membership_basis",
+        "graph_intent_fit",
+        "source_query_context",
+        "source_batch_id",
+        "pair_evidence",
+        "type_membership_evidence",
+        "domain_membership_evidence",
+        "wikidata_property",
         "domain_note",
         "coordinate",
         "coordinates",
@@ -328,6 +528,42 @@ def validate_system_protocol_assets(system_root: str | Path) -> ProtocolAssetRep
         )
         _require_text(
             protocol_schema,
+            "Semantic Acceptance Hardening Directive",
+            issues,
+            "missing_semantic_acceptance_hardening",
+        )
+        _require_text(
+            protocol_schema,
+            "semantic_plan_authority_report.md",
+            issues,
+            "missing_semantic_plan_authority_contract",
+        )
+        _require_text(
+            protocol_schema,
+            "source_probe_event_ledger.md",
+            issues,
+            "missing_source_probe_event_ledger",
+        )
+        _require_text(
+            protocol_schema,
+            "type_field_discovery_report.md",
+            issues,
+            "missing_type_field_discovery_contract",
+        )
+        _require_text(
+            protocol_schema,
+            "edge_family_diversity_report.md",
+            issues,
+            "missing_edge_family_diversity_contract",
+        )
+        _require_text(
+            protocol_schema,
+            "label_quality_report.md",
+            issues,
+            "missing_label_quality_contract",
+        )
+        _require_text(
+            protocol_schema,
             "joint_population_feasibility_gate",
             issues,
             "missing_joint_population_contract",
@@ -400,6 +636,30 @@ def validate_system_protocol_assets(system_root: str | Path) -> ProtocolAssetRep
             issues,
             "missing_completion_semantic_acceptance_gate",
         )
+        _require_text(
+            control_protocol,
+            "RowBackedSemanticAcceptanceGate",
+            issues,
+            "missing_semantic_acceptance_hardening",
+        )
+        _require_text(
+            control_protocol,
+            "GeneratedCode.NonAuthorityGate",
+            issues,
+            "missing_generated_code_runtime_audit_gate",
+        )
+        _require_text(
+            control_protocol,
+            "SourceProbe.OrderGate",
+            issues,
+            "missing_source_probe_event_ledger",
+        )
+        _require_text(
+            control_protocol,
+            "EdgeType.RelationFamilyDiversityGate",
+            issues,
+            "missing_edge_family_diversity_contract",
+        )
     if generate_prompt is not None:
         _require_text(generate_prompt, "GENERATE-BUNDLE", issues, "missing_trigger_phrase")
         _require_text(generate_prompt, "domain_lens", issues, "missing_graph_intent_contract")
@@ -415,6 +675,12 @@ def validate_system_protocol_assets(system_root: str | Path) -> ProtocolAssetRep
             issues,
             "missing_graph_intent_front_door",
         )
+        _require_text(
+            generate_prompt,
+            "semantic_plan_authority_report.md",
+            issues,
+            "missing_semantic_plan_authority_contract",
+        )
     if execute_prompt is not None:
         _require_text(execute_prompt, "EXECUTE-BUNDLE", issues, "missing_trigger_phrase")
         _require_text(
@@ -428,6 +694,12 @@ def validate_system_protocol_assets(system_root: str | Path) -> ProtocolAssetRep
             "Post-run correction gates",
             issues,
             "missing_completion_semantic_acceptance_gate",
+        )
+        _require_text(
+            execute_prompt,
+            "row-backed semantic acceptance",
+            issues,
+            "missing_semantic_acceptance_hardening",
         )
 
     return ProtocolAssetReport(tuple(issues))
@@ -638,12 +910,25 @@ def _validate_cursor_and_log(
     execution_log = _str_value(runs.get("default_execution_log"))
 
     if cursor:
-        _read_json_object(
+        cursor_object = _read_json_object(
             root / cursor,
             issues,
             missing_code="missing_bundle_file",
             invalid_code="invalid_cursor_json",
         )
+        if cursor_object is not None and _is_make_graph_manifest(manifest):
+            missing_fields = [
+                field for field in SEMANTIC_GATE_CURSOR_FIELDS if field not in cursor_object
+            ]
+            if missing_fields:
+                _add(
+                    issues,
+                    "error",
+                    "initial_cursor_semantic_gate_fields_missing",
+                    "MAKE-GRAPH cursor is missing semantic gate fields: "
+                    f"{', '.join(missing_fields)}.",
+                    root / cursor,
+                )
     else:
         _add(issues, "error", "missing_bundle_file", "Default cursor path is missing.", root)
 
@@ -743,6 +1028,9 @@ def _validate_make_graph_semantic_contract(
     _validate_graph_intent_surface(root, run_id, manifest, issues)
     _validate_source_reconnaissance_surface(root, run_id, issues)
     _validate_source_family_surface(root, run_id, manifest, issues)
+    _validate_source_probe_event_ledger(root, run_id, manifest, issues)
+    _validate_row_backed_semantic_reports(root, run_id, manifest, semantic_report, issues)
+    _validate_semantic_plan_authority_report(root, run_id, issues)
     _validate_generated_code_runtime_audit(root, run_id, issues)
     _validate_domain_and_sample_audits(root, run_id, semantic_report, issues)
     _validate_batch_packet_surfaces(root, run_id, manifest, issues)
@@ -1010,7 +1298,16 @@ def _validate_generated_code_runtime_audit(
 ) -> None:
     audit_path = root / f"runs/{run_id}/reports/generated_code_runtime_audit.md"
     audit_text = _read_text_or_empty(audit_path)
+    code_files = _generated_code_files(root)
     if not audit_text:
+        if code_files:
+            _add(
+                issues,
+                "error",
+                "generated_code_runtime_audit_missing",
+                "Generated code files exist but generated_code_runtime_audit.md is missing.",
+                audit_path,
+            )
         return
     if "generated_code_used" not in audit_text:
         _add(
@@ -1046,10 +1343,41 @@ def _validate_generated_code_runtime_audit(
         _add(
             issues,
             "error",
-            "hidden_semantic_runtime_detected",
+            "generated_code_semantic_authority_detected",
             "Generated code audit declares semantic authority over graph content.",
             audit_path,
         )
+    if code_files:
+        _require_table_with_columns(
+            audit_path,
+            audit_text,
+            GENERATED_CODE_AUDIT_COLUMNS,
+            "generated_code_runtime_audit_incomplete",
+            minimum_rows=len(code_files),
+            issues=issues,
+        )
+        for code_file in code_files:
+            rel = code_file.relative_to(root).as_posix()
+            if rel not in audit_text:
+                _add(
+                    issues,
+                    "error",
+                    "generated_code_runtime_audit_incomplete",
+                    f"Generated code audit must list generated code artifact {rel!r}.",
+                    audit_path,
+                )
+            code_text = _read_text_or_empty(code_file)
+            for pattern in GENERATED_CODE_SEMANTIC_PATTERNS:
+                if pattern in code_text:
+                    _add(
+                        issues,
+                        "error",
+                        "generated_code_semantic_authority_detected",
+                        f"Generated code artifact {rel!r} contains semantic authority "
+                        f"pattern {pattern!r}.",
+                        code_file,
+                    )
+                    break
 
 
 def _validate_domain_and_sample_audits(
@@ -1123,6 +1451,426 @@ def _validate_source_family_surface(
                 "families or a logged single_authoritative_source_family_exception.",
                 registry_path,
             )
+
+
+def _validate_source_probe_event_ledger(
+    root: Path,
+    run_id: str,
+    manifest: dict[str, Any],
+    issues: list[ProtocolAssetIssue],
+) -> None:
+    ledger_path = root / f"runs/{run_id}/reports/source_probe_event_ledger.md"
+    ledger_text = _read_text_or_empty(ledger_path)
+    if not ledger_text:
+        return
+
+    has_source_state = (
+        _graph_has_target_scale_records(root, manifest)
+        or (root / f"runs/{run_id}/source_batches").exists()
+    )
+    rows = _require_table_with_columns(
+        ledger_path,
+        ledger_text,
+        SOURCE_EVENT_LEDGER_COLUMNS,
+        "source_probe_event_ledger_missing",
+        minimum_rows=1 if has_source_state else 0,
+        issues=issues,
+    )
+    if not rows:
+        return
+
+    setup_sequences: list[int] = []
+    source_sequences: list[int] = []
+    for row in rows:
+        event_kind = row.get("event_kind", "").lower()
+        sequence = _intish(row.get("sequence"))
+        if any(
+            marker in event_kind
+            for marker in (
+                "graph_intent_contract_materialized",
+                "source_reconnaissance_plan_materialized",
+                "batch_packet_materialized",
+            )
+        ):
+            if sequence is not None:
+                setup_sequences.append(sequence)
+        if "source" in event_kind and "materialized" not in event_kind:
+            if sequence is not None:
+                source_sequences.append(sequence)
+            trigger = row.get("triggering_markdown_artifact", "").strip()
+            if not trigger:
+                _add(
+                    issues,
+                    "error",
+                    "source_event_missing_triggering_markdown_artifact",
+                    "Source event rows must point to the Markdown artifact that authorized them.",
+                    ledger_path,
+                )
+            elif not (root / trigger).exists():
+                _add(
+                    issues,
+                    "error",
+                    "source_event_missing_triggering_markdown_artifact",
+                    f"Triggering Markdown artifact does not exist: {trigger!r}.",
+                    ledger_path,
+                )
+            if not _truthy_cell(row.get("allowed_by_contract")):
+                _add(
+                    issues,
+                    "error",
+                    "source_event_missing_triggering_markdown_artifact",
+                    "Source event rows must declare allowed_by_contract as true/passed/yes.",
+                    ledger_path,
+                )
+
+    if source_sequences and not setup_sequences:
+        _add(
+            issues,
+            "error",
+            "source_probe_before_markdown_authority",
+            "Source events exist but the ledger has no prior Markdown authority events.",
+            ledger_path,
+        )
+    elif source_sequences and setup_sequences and min(source_sequences) <= max(setup_sequences):
+        _add(
+            issues,
+            "error",
+            "source_probe_before_markdown_authority",
+            "Source event sequence must follow graph-intent/source-plan/batch-packet authority.",
+            ledger_path,
+        )
+
+
+def _validate_semantic_plan_authority_report(
+    root: Path,
+    run_id: str,
+    issues: list[ProtocolAssetIssue],
+) -> None:
+    path = root / f"runs/{run_id}/reports/semantic_plan_authority_report.md"
+    text = _read_text_or_empty(path)
+    if not text:
+        return
+
+    required_terms = (
+        "semantic_plan_authority",
+        "generated_code_semantic_authority_allowed",
+        "Markdown Source Artifacts",
+        "Generated Code Artifacts",
+        "Semantic Decisions",
+        "Final Authority Decision",
+    )
+    missing_terms = [term for term in required_terms if term not in text]
+    if missing_terms:
+        _add(
+            issues,
+            "error",
+            "semantic_plan_authority_report_incomplete",
+            "Semantic plan authority report is missing: "
+            f"{', '.join(missing_terms)}.",
+            path,
+        )
+
+    values = _semantic_report_values(text)
+    if _truthy_cell(values.get("generated_code_semantic_authority_allowed")):
+        _add(
+            issues,
+            "error",
+            "generated_code_semantic_authority_detected",
+            "Semantic plan authority report allows generated code semantic authority.",
+            path,
+        )
+
+
+def _validate_row_backed_semantic_reports(
+    root: Path,
+    run_id: str,
+    manifest: dict[str, Any],
+    semantic_report: str,
+    issues: list[ProtocolAssetIssue],
+) -> None:
+    values = _semantic_report_values(semantic_report)
+    status = values.get("semantic_acceptance_status", "").lower()
+    needs_rows = (
+        status == "passed"
+        or _boolish(values.get("graph_build_targets_met"))
+        or _graph_has_target_scale_records(root, manifest)
+    )
+    if not needs_rows:
+        return
+
+    report_rows: dict[str, list[dict[str, str]]] = {}
+    for report_name, (columns, code) in SEMANTIC_ROW_REPORTS.items():
+        path = root / f"runs/{run_id}/reports/{report_name}"
+        text = _read_text_or_empty(path)
+        rows = _require_table_with_columns(
+            path,
+            text,
+            columns,
+            code,
+            minimum_rows=1,
+            issues=issues,
+        )
+        report_rows[report_name] = rows
+
+    _validate_type_field_report_rows(
+        root,
+        manifest,
+        report_rows.get("type_field_discovery_report.md", []),
+        issues,
+    )
+    _validate_edge_candidate_report_rows(
+        report_rows.get("edge_candidate_review.md", []),
+        semantic_report,
+        root / f"runs/{run_id}/reports/edge_candidate_review.md",
+        issues,
+    )
+    _validate_edge_family_report_rows(
+        report_rows.get("edge_family_diversity_report.md", []),
+        semantic_report,
+        root / f"runs/{run_id}/reports/edge_family_diversity_report.md",
+        issues,
+    )
+    _validate_label_quality_rows(
+        report_rows.get("label_quality_report.md", []),
+        root / f"runs/{run_id}/reports/label_quality_report.md",
+        issues,
+    )
+    _validate_source_evidence_accounting_rows(
+        report_rows.get("source_evidence_accounting_report.md", []),
+        semantic_report,
+        root / f"runs/{run_id}/reports/source_evidence_accounting_report.md",
+        issues,
+    )
+    _validate_semantic_sample_rows(
+        report_rows.get("semantic_sample_audit.md", []),
+        root / f"runs/{run_id}/reports/semantic_sample_audit.md",
+        issues,
+    )
+
+
+def _validate_type_field_report_rows(
+    root: Path,
+    manifest: dict[str, Any],
+    rows: list[dict[str, str]],
+    issues: list[ProtocolAssetIssue],
+) -> None:
+    if not rows:
+        return
+
+    path = root / f"runs/{_default_run_id(manifest)}/reports/type_field_discovery_report.md"
+    accepted_domain_fields: dict[str, set[str]] = {}
+    identity_fields: dict[str, set[str]] = {}
+    for row in rows:
+        type_id = row.get("type_id", "").strip()
+        field_key = row.get("field_key", "").strip()
+        if not type_id or not field_key or not _truthy_cell(row.get("accepted")):
+            continue
+        if _truthy_cell(row.get("identity_field")):
+            identity_fields.setdefault(type_id, set()).add(field_key)
+        if _truthy_cell(row.get("domain_descriptive")):
+            if field_key in SOURCE_OR_IDENTITY_FIELD_NAMES:
+                _add(
+                    issues,
+                    "error",
+                    "type_field_padding_detected",
+                    f"Field {field_key!r} is generic/source/identity metadata and "
+                    "cannot count as domain-descriptive richness.",
+                    path,
+                )
+            else:
+                accepted_domain_fields.setdefault(type_id, set()).add(field_key)
+
+    accepted_type_ids = _accepted_type_ids(root, manifest)
+    for type_id in accepted_type_ids:
+        if len(identity_fields.get(type_id, set())) < 1:
+            _add(
+                issues,
+                "error",
+                "type_field_richness_insufficient",
+                f"Accepted type {type_id!r} has no accepted identity field rows.",
+                path,
+            )
+        if len(accepted_domain_fields.get(type_id, set())) < 3:
+            _add(
+                issues,
+                "error",
+                "type_field_richness_insufficient",
+                f"Accepted type {type_id!r} has fewer than three accepted "
+                "domain-descriptive field rows.",
+                path,
+            )
+
+
+def _validate_edge_candidate_report_rows(
+    rows: list[dict[str, str]],
+    semantic_report: str,
+    path: Path,
+    issues: list[ProtocolAssetIssue],
+) -> None:
+    accepted_rows = [
+        row for row in rows if _truthy_cell(row.get("accepted_for_type_graph"))
+    ]
+    if not accepted_rows:
+        return
+
+    for row in accepted_rows:
+        if not _truthy_cell(row.get("not_domain_membership_evidence")):
+            _add(
+                issues,
+                "error",
+                "domain_membership_evidence_used_as_target_edge_family",
+                "Accepted edge candidate rows must not be domain-membership evidence.",
+                path,
+            )
+        if not _truthy_cell(row.get("not_query_derived")):
+            _add(
+                issues,
+                "error",
+                "semantic_edge_family_diversity_unmet",
+                "Accepted edge candidate rows must reject query-derived relations.",
+                path,
+            )
+        if not _truthy_cell(row.get("pair_specific_evidence_available")):
+            _add(
+                issues,
+                "error",
+                "edge_instance_evidence_limited",
+                "Accepted edge candidates require pair-specific evidence availability.",
+                path,
+            )
+
+    accepted_families = {
+        row.get("relation_family", "").strip().lower()
+        for row in accepted_rows
+        if row.get("relation_family", "").strip()
+    }
+    has_narrow_exception = "passed_with_declared_narrow_graph_intent" in semantic_report
+    if len(accepted_rows) > 1 and len(accepted_families) < 2 and not has_narrow_exception:
+        _add(
+            issues,
+            "error",
+            "semantic_edge_family_diversity_unmet",
+            "Accepted edge candidates collapse to one primitive relation family.",
+            path,
+        )
+
+
+def _validate_edge_family_report_rows(
+    rows: list[dict[str, str]],
+    semantic_report: str,
+    path: Path,
+    issues: list[ProtocolAssetIssue],
+) -> None:
+    if not rows:
+        return
+    has_narrow_exception = "passed_with_declared_narrow_graph_intent" in semantic_report
+    accepted_rows = [
+        row for row in rows if row.get("decision", "").strip().lower() in {"accepted", "passed"}
+    ]
+    if not accepted_rows:
+        return
+    families = {
+        row.get("relation_family", "").strip().lower()
+        for row in accepted_rows
+        if row.get("relation_family", "").strip()
+    }
+    if len(accepted_rows) > 1 and len(families) < 2 and not has_narrow_exception:
+        _add(
+            issues,
+            "error",
+            "semantic_edge_family_diversity_unmet",
+            "Edge family diversity report accepts multiple rows from one family only.",
+            path,
+        )
+    for row in accepted_rows:
+        if _truthy_cell(row.get("domain_membership_evidence_overlap")):
+            _add(
+                issues,
+                "error",
+                "domain_membership_evidence_used_as_target_edge_family",
+                "Accepted edge family overlaps with domain-membership evidence.",
+                path,
+            )
+
+
+def _validate_label_quality_rows(
+    rows: list[dict[str, str]],
+    path: Path,
+    issues: list[ProtocolAssetIssue],
+) -> None:
+    for row in rows:
+        if not _truthy_cell(row.get("accepted_for_semantic_count")):
+            continue
+        if _truthy_cell(row.get("opaque_label")) or _truthy_cell(row.get("source_id_only")):
+            _add(
+                issues,
+                "error",
+                "label_quality_limited",
+                "Source-id-only or opaque labels cannot count toward semantic targets.",
+                path,
+            )
+        if not _truthy_cell(row.get("human_readable")):
+            _add(
+                issues,
+                "error",
+                "label_quality_limited",
+                "Accepted semantic records require human-readable labels.",
+                path,
+            )
+
+
+def _validate_source_evidence_accounting_rows(
+    rows: list[dict[str, str]],
+    semantic_report: str,
+    path: Path,
+    issues: list[ProtocolAssetIssue],
+) -> None:
+    actual_families: set[str] = set()
+    fallback_families: set[str] = set()
+    for row in rows:
+        family = row.get("source_family", "").strip().lower()
+        if not family:
+            continue
+        if _truthy_cell(row.get("fallback_only")):
+            fallback_families.add(family)
+            continue
+        node_count = _intish(row.get("accepted_fiber_nodes_supported")) or 0
+        edge_count = _intish(row.get("accepted_fiber_edges_supported")) or 0
+        if node_count or edge_count:
+            actual_families.add(family)
+
+    has_exception = (
+        "single_authoritative_source_family_exception" in semantic_report
+        or "single_authoritative_source_family_exception" in _read_text_or_empty(path)
+    )
+    if fallback_families and len(actual_families) < 2 and not has_exception:
+        _add(
+            issues,
+            "error",
+            "source_evidence_diversity_misreported",
+            "Fallback-only source families do not count as actual evidence diversity.",
+            path,
+        )
+
+
+def _validate_semantic_sample_rows(
+    rows: list[dict[str, str]],
+    path: Path,
+    issues: list[ProtocolAssetIssue],
+) -> None:
+    if not rows:
+        return
+    for row in rows:
+        judgment = row.get("judgment", "").strip().lower()
+        if judgment in {"passed", "accepted", "ok"}:
+            continue
+        _add(
+            issues,
+            "error",
+            "semantic_sample_audit_self_certifying",
+            "Semantic sample audit has unresolved or non-passing sample rows.",
+            path,
+        )
 
 
 def _extract_source_families(text: str) -> set[str]:
@@ -1307,6 +2055,149 @@ def _validate_make_graph_record_semantics(
                     graph_root,
                 )
                 break
+
+
+def _require_table_with_columns(
+    path: Path,
+    text: str,
+    columns: tuple[str, ...],
+    code: str,
+    *,
+    minimum_rows: int,
+    issues: list[ProtocolAssetIssue],
+) -> list[dict[str, str]]:
+    tables = _markdown_tables(text)
+    matching_tables: list[list[dict[str, str]]] = []
+    for headers, rows in tables:
+        normalized_headers = {_normalize_table_cell(header) for header in headers}
+        if all(column in normalized_headers for column in columns):
+            matching_tables.append(rows)
+
+    if not matching_tables:
+        _add(
+            issues,
+            "error",
+            code,
+            "Report must contain a Markdown table with columns: "
+            f"{', '.join(columns)}.",
+            path,
+        )
+        return []
+
+    rows = [row for table_rows in matching_tables for row in table_rows]
+    substantive_rows = [row for row in rows if _is_substantive_row(row, columns)]
+    if len(substantive_rows) < minimum_rows:
+        _add(
+            issues,
+            "error",
+            code,
+            f"Report table has {len(substantive_rows)} substantive rows; "
+            f"expected at least {minimum_rows}.",
+            path,
+        )
+    return substantive_rows
+
+
+def _markdown_tables(text: str) -> list[tuple[list[str], list[dict[str, str]]]]:
+    tables: list[tuple[list[str], list[dict[str, str]]]] = []
+    lines = text.splitlines()
+    index = 0
+    while index < len(lines):
+        line = lines[index].strip()
+        if not (line.startswith("|") and line.endswith("|")):
+            index += 1
+            continue
+        if index + 1 >= len(lines) or not _is_markdown_separator(lines[index + 1]):
+            index += 1
+            continue
+        headers = [_normalize_table_cell(cell) for cell in _table_cells(line)]
+        index += 2
+        rows: list[dict[str, str]] = []
+        while index < len(lines):
+            row_line = lines[index].strip()
+            if not (row_line.startswith("|") and row_line.endswith("|")):
+                break
+            cells = _table_cells(row_line)
+            row = {
+                headers[cell_index]: cells[cell_index].strip()
+                for cell_index in range(min(len(headers), len(cells)))
+            }
+            rows.append(row)
+            index += 1
+        tables.append((headers, rows))
+    return tables
+
+
+def _table_cells(line: str) -> list[str]:
+    return [cell.strip().strip("`") for cell in line.strip().strip("|").split("|")]
+
+
+def _normalize_table_cell(value: str) -> str:
+    return value.strip().strip("`").lower().replace(" ", "_").replace("-", "_")
+
+
+def _is_markdown_separator(line: str) -> bool:
+    cells = _table_cells(line)
+    return bool(cells) and all(set(cell.replace(":", "").strip()) <= {"-"} for cell in cells)
+
+
+def _is_substantive_row(row: dict[str, str], required_columns: tuple[str, ...]) -> bool:
+    for column in required_columns:
+        value = row.get(column, "").strip().lower()
+        if not value:
+            return False
+        if value in {"n/a", "na", "none"}:
+            return False
+        if any(marker in value for marker in TABLE_PLACEHOLDER_MARKERS):
+            return False
+    return True
+
+
+def _truthy_cell(value: str | None) -> bool:
+    return (value or "").strip().lower() in {
+        "true",
+        "yes",
+        "passed",
+        "pass",
+        "accepted",
+        "1",
+    }
+
+
+def _generated_code_files(root: Path) -> list[Path]:
+    code_files: list[Path] = []
+    for path in root.rglob("*"):
+        if not path.is_file():
+            continue
+        parts = set(path.relative_to(root).parts)
+        if "__pycache__" in parts:
+            continue
+        if path.name.startswith(".tmp_") or path.suffix in GENERATED_CODE_FILE_SUFFIXES:
+            code_files.append(path)
+    return sorted(code_files)
+
+
+def _accepted_type_ids(root: Path, manifest: dict[str, Any]) -> set[str]:
+    graphs = _dict_value(manifest.get("graphs"))
+    graph_root = root / _str_value(graphs.get("candidate_graph_root"))
+    type_graph_id = _str_value(graphs.get("type_graph_id"))
+    fiber_graph_id = _str_value(graphs.get("fiber_graph_id"))
+    if not graph_root or not type_graph_id or not fiber_graph_id:
+        return set()
+    try:
+        bundle = load_graph_bundle(
+            graph_root,
+            type_graph_id=type_graph_id,
+            fiber_graph_id=fiber_graph_id,
+        )
+    except GraphLoadError:
+        return set()
+    return {
+        record.id
+        for record in bundle.type_node_records
+        if record.id
+        and (record.status == "accepted" or record.raw.get("fiber_population_eligible") is True)
+    }
 
 
 def _semantic_report_values(text: str) -> dict[str, str]:

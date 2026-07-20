@@ -20,7 +20,15 @@ continue_until: graph_build_targets_met unless manual debugging was explicitly
 requested. Execute only the bounded scope requested by continue_until. Validate affected graph state, append
 the execution log, update the cursor, and stop if any stop condition fires.
 
-Post-run correction gates: for ordinary MAKE-GRAPH bundles, verify post-confirmation graph-intent materialization order, source reconnaissance plan and batch packets, generated code runtime audit, domain membership audit, semantic sample audit, and accepted-versus-candidate target reconciliation before any completion claim. Candidate, rejected, deferred, synthetic, deterministic, or completion-policy records do not count toward targets. If semantic acceptance is not passed, say the graph is not complete before reporting raw counts or structural validation.
+Post-run correction gates: for ordinary MAKE-GRAPH bundles, verify post-confirmation graph-intent materialization order, semantic_plan_authority_report.md, source_probe_event_ledger.md, source reconnaissance plan and batch packets, generated code runtime audit, domain membership audit, semantic sample audit, label quality, source evidence accounting, edge-family diversity, type/edge field richness, and accepted-versus-candidate target reconciliation before any completion claim.
+
+Semantic completion requires row-backed semantic acceptance. Candidate,
+rejected, deferred, synthetic, deterministic, or completion-policy records do
+not count toward targets. Generated helper code may perform mechanical
+conversion or validation from Markdown-authorized rows, but it must not own the
+semantic plan, source strategy, accepted type/edge inventories, acceptance
+judgments, or completion status. If semantic acceptance is not passed, say the
+graph is not complete before reporting raw counts or structural validation.
 
 Do not redesign the generated bundle unless explicitly invoked in REPAIR-BUNDLE
 mode. Do not write outside the allowed target files declared by the bundle.

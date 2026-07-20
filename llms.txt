@@ -18,7 +18,9 @@ Semantic acceptance, not raw JSON count, determines completion. Candidate,
 rejected, deferred, synthetic, deterministic, and source-shape-only records are
 non-counting unless a human explicitly requests scaffold mode. Source
 reconnaissance is Markdown-first and generated helper code requires an explicit
-runtime audit.
+runtime audit. Semantic acceptance is row-backed: type candidates, fields, edge
+families, source evidence, labels, sample audit, and target reconciliation must
+be inspectable in repo-local Markdown/JSON artifacts.
 
 For broad `MAKE-GRAPH` domains, the minimal domain + counts prompt is valid
 and sufficient. Missing graph intent triggers front-door triage. Codex must ask

@@ -292,6 +292,108 @@ If `semantic_acceptance_status` is not `passed`, the graph is not complete. The
 final response must say that first. Structural validation success may be
 reported only as supporting detail.
 
+### Semantic Acceptance Hardening Directive
+
+Ordinary `MAKE-GRAPH` completion requires row-backed semantic acceptance. A
+report heading, summary counter, source-query count, raw graph JSON count, or
+generated script output is not enough. Semantic acceptance must be falsifiable
+from repo-local Markdown/JSON artifacts by a Codex instance with zero prior
+conversation context.
+
+The generated Markdown/JSON bundle is the workflow program. Generated code may
+perform declared mechanical work only after a controlling Markdown artifact
+exists. Generated code must not author graph intent, source strategy, type
+candidate inventory, edge candidate inventory, field discovery, acceptance
+judgments, target-filling policy, or final semantic completion.
+
+For every ordinary `MAKE-GRAPH` bundle, initialize and maintain these additional
+reports:
+
+```text
+runs/<run_id>/reports/semantic_plan_authority_report.md
+runs/<run_id>/reports/source_probe_event_ledger.md
+runs/<run_id>/reports/type_candidate_review.md
+runs/<run_id>/reports/type_field_discovery_report.md
+runs/<run_id>/reports/edge_candidate_review.md
+runs/<run_id>/reports/edge_family_diversity_report.md
+runs/<run_id>/reports/edge_field_discovery_report.md
+runs/<run_id>/reports/domain_membership_boundary_report.md
+runs/<run_id>/reports/source_evidence_accounting_report.md
+runs/<run_id>/reports/label_quality_report.md
+```
+
+`semantic_plan_authority_report.md` must distinguish semantic decisions from
+mechanical tool uses. Semantic decisions include graph intent, source family
+admissibility, source adapter recovery order, type candidates, accepted types,
+type fields, edge candidates, accepted edge types, edge fields, instance
+admission, edge evidence, semantic sample judgments, and completion status. A
+generated code artifact that contains these decisions is a semantic authority
+violation even if it later mirrors them into Markdown.
+
+`source_probe_event_ledger.md` must record every source probe, source adapter
+test, source cache read, and source result import. Each row must identify the
+triggering Markdown artifact and batch id that authorized the event. Source
+events before graph intent, source reconnaissance, and batch-packet authority
+fail with `source_probe_before_markdown_authority`.
+
+`type_candidate_review.md` must row-review candidate type nodes before type
+graph writes. Accepted type rows must show source evidence, source family,
+source adapter, graph-intent fit, ordinary-entity status,
+`fiber_population_eligible`, and the acceptance reason. Source taxonomy labels,
+source categories, schema categories, provenance categories, evidence object
+classes, adapter result classes, claim target buckets, and query-result
+convenience buckets are not ordinary type nodes unless the graph intent
+explicitly makes them concrete domain entities.
+
+`type_field_discovery_report.md` must be produced by a per-type deep field
+discovery loop after the type set is frozen. Each accepted ordinary type needs
+identity fields and type-specific domain-descriptive fields. Generic fields
+such as `source_query_context`, `source_adapter_id`, `source_url`,
+`source_category`, `domain_membership_basis`, `type_membership_basis`,
+`graph_intent_fit`, `label`, `description`, and `external_id` may be useful
+metadata, but they do not count as domain-descriptive field richness.
+
+`edge_candidate_review.md` must row-review candidate edge types after enriched
+types exist. Accepted edge rows must show a primitive relation claim, relation
+family, source/target types, pair-specific evidence availability,
+domain-centrality rationale, and explicit rejection of query-derived,
+source-metadata, provenance, and domain-membership-evidence relations. Domain
+membership evidence may admit records into the graph; it must not automatically
+become a target edge family.
+
+`edge_family_diversity_report.md` must collapse inverse, endpoint variant,
+alternate, and fallback labels into primitive relation families before edge
+targets are counted. Raw edge type IDs do not prove relation diversity. If the
+accepted edge inventory is dominated by one shallow relation family, or by
+domain-membership evidence, the bundle must continue relation discovery or stop
+with `semantic_edge_family_diversity_unmet`.
+
+`edge_field_discovery_report.md` must be produced by a per-edge-type field
+discovery loop after the edge set is frozen. Each accepted edge type needs at
+least one relation-descriptive field or a non-passing relation-field limitation
+after recovery. Pair evidence and provenance fields are required where useful
+but do not count as relation-descriptive richness.
+
+`domain_membership_boundary_report.md` must row-review whether accepted records
+fit the graph-intent contract. Geographic, administrative, source-taxonomy, or
+source-result membership evidence is not sufficient by itself unless the graph
+intent explicitly authorizes that boundary.
+
+`source_evidence_accounting_report.md` must distinguish source families
+actually used for accepted records from source families merely available as
+fallback, audit, or recovery options. Fallback availability does not count as
+evidence diversity. A single source family may pass only through an explicit
+`single_authoritative_source_family_exception` tied to the graph intent.
+
+`label_quality_report.md` must row-review accepted records for human-readable
+labels. Source-id-only labels, opaque IDs, and unrepairable labels cannot count
+toward semantic targets unless the run stops as label-limited.
+
+The final `semantic_acceptance_report.md` must reconcile these row-backed
+reports. If raw counts are met but any row-backed semantic gate is missing,
+incomplete, contradictory, or failed, the status is
+`semantic_acceptance_incomplete`, not `passed`.
+
 ## Corrected Soft Control Flow Diagram
 
 This diagram is the whole-system control flow. It is normative for both the
