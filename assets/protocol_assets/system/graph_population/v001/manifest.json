@@ -53,6 +53,9 @@
       "Evidence Required",
       "Validation Required",
       "Completion Rule",
+      "Semantic Acceptance Gate",
+      "Recovery Policy",
+      "Batch Execution",
       "Stop Conditions",
       "Handoff"
     ],
@@ -66,7 +69,12 @@
       "runs/<run_id>/reports/source_strategy_decision_log.md",
       "runs/<run_id>/reports/joint_population_feasibility_plan.md",
       "runs/<run_id>/reports/endpoint_reservation_plan.md",
-      "runs/<run_id>/reports/semantic_acceptance_report.md"
+      "runs/<run_id>/reports/semantic_acceptance_report.md",
+      "runs/<run_id>/reports/source_reconnaissance_plan.md",
+      "runs/<run_id>/reports/source_adapter_recovery_plan.md",
+      "runs/<run_id>/reports/generated_code_runtime_audit.md",
+      "runs/<run_id>/reports/domain_membership_audit.md",
+      "runs/<run_id>/reports/semantic_sample_audit.md"
     ],
     "semantic_acceptance_validator_checks": [
       "source_landscape_artifacts_present",
@@ -79,7 +87,17 @@
       "graph_intent_contract_present",
       "graph_intent_alignment_loop_precedes_source_and_type_discovery",
       "graph_intent_downstream_gate_required",
-      "semantic_acceptance_checks_graph_intent_fit"
+      "semantic_acceptance_checks_graph_intent_fit",
+      "graph_intent_contract_materialized_before_source_probe",
+      "source_reconnaissance_plan_required_before_source_results",
+      "source_result_requires_declared_batch_packet",
+      "generated_code_runtime_audit_required",
+      "candidate_records_never_count_toward_targets",
+      "accepted_target_reconciliation_required",
+      "semantic_sample_audit_required_before_completion",
+      "domain_membership_audit_required_before_completion",
+      "semantic_report_counter_contradictions_rejected",
+      "completion_narration_must_match_semantic_status"
     ]
   },
   "graph_contract": {

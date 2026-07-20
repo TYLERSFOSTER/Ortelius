@@ -33,6 +33,9 @@ MAKE_GRAPH_TABLES = (
     "Joint Population Feasibility Table",
     "Endpoint Reservation Review Table",
     "Generated Code Runtime Audit Table",
+    "Accepted Target Reconciliation Table",
+    "Semantic Sample Audit Table",
+    "Source Probe Order Audit Table",
     "Counter Reconciliation Table",
     "Final Decision",
 )
@@ -46,6 +49,9 @@ def _promote_fixture_to_make_graph(bundle: Path) -> dict:
         "required": True,
         "contract_path": "runs/run_001/reports/graph_intent_contract.md",
         "domain_lens": "fixture validation lens",
+        "graph_intent_status": "confirmed",
+        "intent_resolution_mode": "user_confirmed",
+        "confirmed_or_authorized_lens": "fixture validation lens",
         "confirmation_status": "confirmed",
         "intent_confirmation_policy": "user_supplied_confirmed",
         "downstream_gate": "all graph-shaping candidates must fit graph_intent_contract",
@@ -197,6 +203,22 @@ def _write_make_graph_artifacts(bundle: Path, *, placeholder_packet: bool = Fals
         "downstream_gate: all graph-shaping candidates must fit graph_intent_contract\n",
         encoding="utf-8",
     )
+    (reports / "source_reconnaissance_plan.md").write_text(
+        "# Source Reconnaissance Plan\n\n"
+        "graph_intent_contract_path: runs/run_001/reports/graph_intent_contract.md\n"
+        "source_scope: fixture source scope\n"
+        "source_families: source_family_alpha, source_family_beta\n"
+        "source_adapters: alpha_api, beta_catalog\n"
+        "source_family_priority: alpha then beta\n"
+        "source_adapter_recovery_order: alpha_api -> beta_catalog\n"
+        "minimum_domain_membership_evidence: fixture domain evidence\n"
+        "minimum_type_membership_evidence: fixture type evidence\n"
+        "minimum_edge_pair_evidence: fixture pair evidence\n"
+        "batching_strategy: one fixture batch\n"
+        "failure_policy: stop with source_reconnaissance_limited\n"
+        "next_legal_action: SourceReconnaissance.BatchPacketWrite\n",
+        encoding="utf-8",
+    )
     (reports / "source_landscape_map.md").write_text(
         "# Source Landscape Map\n\n"
         "source_family: source_family_alpha\n"
@@ -219,6 +241,12 @@ def _write_make_graph_artifacts(bundle: Path, *, placeholder_packet: bool = Fals
         "# Source Adapter Candidate Frontier\n\nsource_adapter: alpha_api\n",
         encoding="utf-8",
     )
+    (reports / "source_adapter_recovery_plan.md").write_text(
+        "# Source Adapter Recovery Plan\n\n"
+        "source_adapter_recovery_order: alpha_api -> beta_catalog\n"
+        "failure_policy: try next admissible source family before terminal stop\n",
+        encoding="utf-8",
+    )
     (reports / "source_strategy_decision_log.md").write_text(
         "# Source Strategy Decision Log\n\n"
         "source_family: source_family_alpha\n"
@@ -235,10 +263,29 @@ def _write_make_graph_artifacts(bundle: Path, *, placeholder_packet: bool = Fals
         "# Endpoint Reservation Plan\n\nstatus: initialized\n",
         encoding="utf-8",
     )
+    (reports / "domain_membership_audit.md").write_text(
+        "# Domain Membership Audit\n\n"
+        "domain_membership_audit_status: pending\n",
+        encoding="utf-8",
+    )
+    (reports / "semantic_sample_audit.md").write_text(
+        "# Semantic Sample Audit\n\n"
+        "semantic_sample_audit_status: pending\n",
+        encoding="utf-8",
+    )
+    (reports / "generated_code_runtime_audit.md").write_text(
+        "# Generated Code Runtime Audit\n\n"
+        "generated_code_used: false\n",
+        encoding="utf-8",
+    )
     semantic = [
         "# Semantic Acceptance Report",
         "",
         "semantic_acceptance_status: semantic_acceptance_incomplete",
+        "graph_build_targets_met: false",
+        "candidate_records_counted_toward_target: false",
+        "synthetic_or_completion_records_counted_toward_target: false",
+        "final_narration_starts_with_incomplete_status: true",
         "",
         "domain_field_complete: pending",
     ]
@@ -257,12 +304,16 @@ def _write_make_graph_artifacts(bundle: Path, *, placeholder_packet: bool = Fals
     else:
         packet = """# Batch Packet
 
+batch_id: fixture_batch
 parent_loop_id: type_node_discovery
 batch_goal: evaluate one fixture item
 ordered_item_list:
 - fixture_item_001
+candidate_items_to_consider:
+- fixture_item_001
 acceptance_criteria: source-backed domain evidence exists
 rejection_criteria: evidence missing
+source_batch_cache_path: runs/run_001/source_batches/fixture_batch.json
 per_item_status_table:
 | item | status |
 |---|---|
@@ -590,3 +641,137 @@ def test_validate_protocol_bundle_rejects_shallow_make_graph_type_fields(
 
     assert not report.ok
     assert report.has_code("type_field_richness_incomplete")
+
+def test_validate_protocol_bundle_rejects_source_batch_without_declared_packet(
+    tmp_path: Path,
+) -> None:
+    bundle = tmp_path / "bundle"
+    shutil.copytree(VALID_BUNDLE, bundle)
+    _promote_fixture_to_make_graph(bundle)
+    _write_make_graph_artifacts(bundle)
+    source_batches = bundle / "runs" / "run_001" / "source_batches"
+    source_batches.mkdir(parents=True, exist_ok=True)
+    (source_batches / "orphan_batch.json").write_text(
+        json.dumps({"records": []}), encoding="utf-8"
+    )
+
+    report = validate_protocol_bundle(bundle)
+
+    assert not report.ok
+    assert report.has_code("source_result_without_declared_batch")
+
+
+def test_validate_protocol_bundle_rejects_generated_code_audit_with_semantic_authority(
+    tmp_path: Path,
+) -> None:
+    bundle = tmp_path / "bundle"
+    shutil.copytree(VALID_BUNDLE, bundle)
+    _promote_fixture_to_make_graph(bundle)
+    _write_make_graph_artifacts(bundle)
+    audit = bundle / "runs" / "run_001" / "reports" / "generated_code_runtime_audit.md"
+    audit.write_text(
+        "# Generated Code Runtime Audit\n\n"
+        "generated_code_used: true\n"
+        "declared_markdown_authority: runs/run_001/batch_packets/fixture_batch.md\n"
+        "mechanical_purpose: validate fixture serialization\n"
+        "semantic_non_authority_statement: helper cannot decide graph content\n"
+        "inputs: fixture batch\n"
+        "outputs: fixture output\n"
+        "executed_at: fixture time\n"
+        "cleanup_status: retained in fixture\n"
+        "safe_to_resume: true\n"
+        "semantic_authority: true\n",
+        encoding="utf-8",
+    )
+
+    report = validate_protocol_bundle(bundle)
+
+    assert not report.ok
+    assert report.has_code("hidden_semantic_runtime_detected")
+
+
+def test_validate_protocol_bundle_rejects_candidate_records_counted_toward_target(
+    tmp_path: Path,
+) -> None:
+    bundle = tmp_path / "bundle"
+    shutil.copytree(VALID_BUNDLE, bundle)
+    _promote_fixture_to_make_graph(bundle)
+    _write_make_graph_artifacts(bundle)
+    report_path = bundle / "runs" / "run_001" / "reports" / "semantic_acceptance_report.md"
+    text = report_path.read_text(encoding="utf-8")
+    text = text.replace(
+        "candidate_records_counted_toward_target: false",
+        "candidate_records_counted_toward_target: true",
+    )
+    report_path.write_text(text, encoding="utf-8")
+
+    report = validate_protocol_bundle(bundle)
+
+    assert not report.ok
+    assert report.has_code("candidate_records_counted_toward_target")
+
+
+def test_validate_protocol_bundle_rejects_semantic_completion_counter_contradiction(
+    tmp_path: Path,
+) -> None:
+    bundle = tmp_path / "bundle"
+    shutil.copytree(VALID_BUNDLE, bundle)
+    _promote_fixture_to_make_graph(bundle)
+    _write_make_graph_artifacts(bundle)
+    report_path = bundle / "runs" / "run_001" / "reports" / "semantic_acceptance_report.md"
+    text = report_path.read_text(encoding="utf-8")
+    text = text.replace(
+        "semantic_acceptance_status: semantic_acceptance_incomplete",
+        "semantic_acceptance_status: edge_evidence_limited",
+    )
+    text = text.replace("graph_build_targets_met: false", "graph_build_targets_met: true")
+    report_path.write_text(text, encoding="utf-8")
+
+    report = validate_protocol_bundle(bundle)
+
+    assert not report.ok
+    assert report.has_code("semantic_report_counter_contradiction")
+
+
+def test_validate_protocol_bundle_rejects_passed_semantic_status_without_audits(
+    tmp_path: Path,
+) -> None:
+    bundle = tmp_path / "bundle"
+    shutil.copytree(VALID_BUNDLE, bundle)
+    _promote_fixture_to_make_graph(bundle)
+    _write_make_graph_artifacts(bundle)
+    report_path = bundle / "runs" / "run_001" / "reports" / "semantic_acceptance_report.md"
+    text = report_path.read_text(encoding="utf-8")
+    text = text.replace(
+        "semantic_acceptance_status: semantic_acceptance_incomplete",
+        "semantic_acceptance_status: passed",
+    )
+    text = text.replace("graph_build_targets_met: false", "graph_build_targets_met: true")
+    report_path.write_text(text, encoding="utf-8")
+
+    report = validate_protocol_bundle(bundle)
+
+    assert not report.ok
+    assert report.has_code("domain_membership_audit_failed")
+    assert report.has_code("semantic_sample_audit_missing")
+
+
+def test_validate_protocol_bundle_rejects_incomplete_status_with_success_narration(
+    tmp_path: Path,
+) -> None:
+    bundle = tmp_path / "bundle"
+    shutil.copytree(VALID_BUNDLE, bundle)
+    _promote_fixture_to_make_graph(bundle)
+    _write_make_graph_artifacts(bundle)
+    report_path = bundle / "runs" / "run_001" / "reports" / "semantic_acceptance_report.md"
+    text = report_path.read_text(encoding="utf-8")
+    text = text.replace(
+        "final_narration_starts_with_incomplete_status: true",
+        "final_narration_starts_with_incomplete_status: false",
+    )
+    report_path.write_text(text, encoding="utf-8")
+
+    report = validate_protocol_bundle(bundle)
+
+    assert not report.ok
+    assert report.has_code("completion_narration_inconsistent")

@@ -14,6 +14,12 @@ The Python package does not call Codex or crawl sources by itself. It loads,
 validates, inspects, and materializes graph JSON produced by the protocol
 workflow.
 
+Semantic acceptance, not raw JSON count, determines completion. Candidate,
+rejected, deferred, synthetic, deterministic, and source-shape-only records are
+non-counting unless a human explicitly requests scaffold mode. Source
+reconnaissance is Markdown-first and generated helper code requires an explicit
+runtime audit.
+
 For broad `MAKE-GRAPH` domains, the minimal domain + counts prompt is valid
 and sufficient. Missing graph intent triggers front-door triage. Codex must ask
 bounded alignment questions or propose candidate graph lenses and stop before

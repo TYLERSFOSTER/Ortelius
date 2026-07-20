@@ -45,12 +45,17 @@ MAKE_GRAPH_REQUIRED_ARTIFACT_TEMPLATES = (
     "control_loop_plan.md",
     "runs/<run_id>/reports/generated_bundle_acceptance_report.md",
     "runs/<run_id>/reports/graph_intent_contract.md",
+    "runs/<run_id>/reports/source_reconnaissance_plan.md",
     "runs/<run_id>/reports/source_landscape_map.md",
     "runs/<run_id>/reports/source_family_registry.md",
     "runs/<run_id>/source_adapter_candidate_frontier.md",
+    "runs/<run_id>/reports/source_adapter_recovery_plan.md",
     "runs/<run_id>/reports/source_strategy_decision_log.md",
     "runs/<run_id>/reports/joint_population_feasibility_plan.md",
     "runs/<run_id>/reports/endpoint_reservation_plan.md",
+    "runs/<run_id>/reports/domain_membership_audit.md",
+    "runs/<run_id>/reports/semantic_sample_audit.md",
+    "runs/<run_id>/reports/generated_code_runtime_audit.md",
     "runs/<run_id>/reports/semantic_acceptance_report.md",
 )
 
@@ -68,16 +73,29 @@ SEMANTIC_ACCEPTANCE_REQUIRED_TABLES = (
     "Joint Population Feasibility Table",
     "Endpoint Reservation Review Table",
     "Generated Code Runtime Audit Table",
+    "Accepted Target Reconciliation Table",
+    "Semantic Sample Audit Table",
+    "Source Probe Order Audit Table",
     "Counter Reconciliation Table",
     "Final Decision",
 )
 
 GRAPH_INTENT_CONTRACT_REQUIRED_TERMS = (
     "domain_label",
-    "domain_lens",
-    "confirmation_status",
-    "intent_confirmation_policy",
+    "graph_intent_status",
+    "intent_resolution_mode",
+    "confirmed_or_authorized_lens",
+    "included_lenses",
+    "excluded_lenses",
+    "ordinary_entity_scope",
+    "relation_scope",
+    "source_scope",
+    "domain_membership_rule",
+    "type_membership_rule",
+    "edge_evidence_rule",
     "downstream_gate",
+    "created_before_source_probe",
+    "next_legal_action_after_contract",
 )
 
 PASSING_GRAPH_INTENT_STATUS_MARKERS = (
@@ -94,11 +112,14 @@ GRAPH_INTENT_RECORD_KEYS = (
 )
 
 BATCH_PACKET_REQUIRED_TERMS = (
+    "batch_id",
     "parent_loop_id",
     "batch_goal",
     "ordered_item_list",
+    "candidate_items_to_consider",
     "acceptance_criteria",
     "rejection_criteria",
+    "source_batch_cache_path",
     "write_targets",
     "cursor_update_rule",
     "resume_point",
@@ -289,6 +310,24 @@ def validate_system_protocol_assets(system_root: str | Path) -> ProtocolAssetRep
         )
         _require_text(
             protocol_schema,
+            "Post-Confirmation Materialization Gate",
+            issues,
+            "missing_post_confirmation_materialization_gate",
+        )
+        _require_text(
+            protocol_schema,
+            "Markdown-First Source Reconnaissance Directive",
+            issues,
+            "missing_markdown_first_source_reconnaissance",
+        )
+        _require_text(
+            protocol_schema,
+            "Accepted Target Reconciliation",
+            issues,
+            "missing_accepted_target_reconciliation",
+        )
+        _require_text(
+            protocol_schema,
             "joint_population_feasibility_gate",
             issues,
             "missing_joint_population_contract",
@@ -343,9 +382,33 @@ def validate_system_protocol_assets(system_root: str | Path) -> ProtocolAssetRep
             issues,
             "missing_markdown_runtime_boundary",
         )
+        _require_text(
+            control_protocol,
+            "GraphIntentContract.MaterializationGate",
+            issues,
+            "missing_post_confirmation_materialization_gate",
+        )
+        _require_text(
+            control_protocol,
+            "GeneratedCode.RuntimeAuditGate",
+            issues,
+            "missing_generated_code_runtime_audit_gate",
+        )
+        _require_text(
+            control_protocol,
+            "Completion.SemanticAcceptanceGate",
+            issues,
+            "missing_completion_semantic_acceptance_gate",
+        )
     if generate_prompt is not None:
         _require_text(generate_prompt, "GENERATE-BUNDLE", issues, "missing_trigger_phrase")
         _require_text(generate_prompt, "domain_lens", issues, "missing_graph_intent_contract")
+        _require_text(
+            generate_prompt,
+            "Post-confirmation order for `MAKE-GRAPH`",
+            issues,
+            "missing_post_confirmation_materialization_gate",
+        )
         _require_text(
             generate_prompt,
             "minimal prompt with only domain + target",
@@ -359,6 +422,12 @@ def validate_system_protocol_assets(system_root: str | Path) -> ProtocolAssetRep
             "graph_intent_contract.md",
             issues,
             "missing_graph_intent_contract",
+        )
+        _require_text(
+            execute_prompt,
+            "Post-run correction gates",
+            issues,
+            "missing_completion_semantic_acceptance_gate",
         )
 
     return ProtocolAssetReport(tuple(issues))
@@ -667,10 +736,15 @@ def _validate_make_graph_semantic_contract(
     semantic_report_path = root / f"runs/{run_id}/reports/semantic_acceptance_report.md"
     semantic_report = _read_text_or_empty(semantic_report_path)
     if semantic_report:
-        _validate_semantic_acceptance_report(semantic_report_path, semantic_report, issues)
+        _validate_semantic_acceptance_report(
+            semantic_report_path, semantic_report, manifest, issues
+        )
 
     _validate_graph_intent_surface(root, run_id, manifest, issues)
+    _validate_source_reconnaissance_surface(root, run_id, issues)
     _validate_source_family_surface(root, run_id, manifest, issues)
+    _validate_generated_code_runtime_audit(root, run_id, issues)
+    _validate_domain_and_sample_audits(root, run_id, semantic_report, issues)
     _validate_batch_packet_surfaces(root, run_id, manifest, issues)
     _validate_make_graph_record_semantics(root, manifest, issues)
 
@@ -692,6 +766,7 @@ def _default_run_id(manifest: dict[str, Any]) -> str:
 def _validate_semantic_acceptance_report(
     path: Path,
     text: str,
+    manifest: dict[str, Any],
     issues: list[ProtocolAssetIssue],
 ) -> None:
     for table in SEMANTIC_ACCEPTANCE_REQUIRED_TABLES:
@@ -713,6 +788,70 @@ def _validate_semantic_acceptance_report(
             "distinguishing domain_field_complete from identity scaffold state.",
             path,
         )
+
+    values = _semantic_report_values(text)
+    status = values.get("semantic_acceptance_status", "").lower()
+    targets_met = _boolish(values.get("graph_build_targets_met"))
+    if _boolish(values.get("candidate_records_counted_toward_target")):
+        _add(
+            issues,
+            "error",
+            "candidate_records_counted_toward_target",
+            "Candidate records must not count toward MAKE-GRAPH targets.",
+            path,
+        )
+    if _boolish(values.get("synthetic_or_completion_records_counted_toward_target")):
+        _add(
+            issues,
+            "error",
+            "synthetic_records_counted_toward_target",
+            "Synthetic or deterministic completion records must not count toward targets.",
+            path,
+        )
+    if targets_met and status and status != "passed":
+        _add(
+            issues,
+            "error",
+            "semantic_report_counter_contradiction",
+            "Semantic report says graph_build_targets_met while "
+            "semantic_acceptance_status is not passed.",
+            path,
+        )
+    if status == "passed":
+        _require_report_value(
+            values,
+            "domain_membership_audit_status",
+            "passed",
+            issues,
+            "domain_membership_audit_failed",
+            path,
+        )
+        _require_report_value(
+            values,
+            "semantic_sample_audit_status",
+            "passed",
+            issues,
+            "semantic_sample_audit_missing",
+            path,
+        )
+        if not targets_met:
+            _add(
+                issues,
+                "error",
+                "semantic_report_counter_contradiction",
+                "Passed semantic acceptance requires graph_build_targets_met: true.",
+                path,
+            )
+        _validate_expected_accepted_counts(path, values, manifest, issues)
+    elif status and status != "passed":
+        if values.get("final_narration_starts_with_incomplete_status") == "false":
+            _add(
+                issues,
+                "error",
+                "completion_narration_inconsistent",
+                "Incomplete semantic status must be narrated as incomplete before raw counts.",
+                path,
+            )
 
 
 def _validate_graph_intent_surface(
@@ -812,6 +951,138 @@ def _validate_graph_intent_surface(
                     "Graph-intent alignment must precede source/type discovery loops.",
                     manifest_path,
                 )
+
+
+def _validate_source_reconnaissance_surface(
+    root: Path,
+    run_id: str,
+    issues: list[ProtocolAssetIssue],
+) -> None:
+    plan_path = root / f"runs/{run_id}/reports/source_reconnaissance_plan.md"
+    plan_text = _read_text_or_empty(plan_path)
+    required_terms = (
+        "graph_intent_contract_path",
+        "source_scope",
+        "source_families",
+        "source_adapters",
+        "source_adapter_recovery_order",
+        "minimum_domain_membership_evidence",
+        "minimum_type_membership_evidence",
+        "minimum_edge_pair_evidence",
+        "batching_strategy",
+        "failure_policy",
+        "next_legal_action",
+    )
+    if plan_text:
+        missing_terms = [term for term in required_terms if term not in plan_text]
+        if missing_terms:
+            _add(
+                issues,
+                "error",
+                "source_reconnaissance_plan_incomplete",
+                "Source reconnaissance plan is missing required terms: "
+                f"{', '.join(missing_terms)}.",
+                plan_path,
+            )
+
+    batch_root = root / f"runs/{run_id}/source_batches"
+    if not batch_root.exists():
+        return
+    packets = sorted((root / f"runs/{run_id}/batch_packets").glob("*.md"))
+    packet_texts = [packet.read_text(encoding="utf-8") for packet in packets]
+    for batch in sorted(batch_root.glob("*.json")):
+        rel_batch = batch.relative_to(root).as_posix()
+        declared = any(batch.name in text or rel_batch in text for text in packet_texts)
+        if not declared:
+            _add(
+                issues,
+                "error",
+                "source_result_without_declared_batch",
+                f"Source batch {rel_batch!r} has no prior Markdown batch packet declaration.",
+                batch,
+            )
+
+
+def _validate_generated_code_runtime_audit(
+    root: Path,
+    run_id: str,
+    issues: list[ProtocolAssetIssue],
+) -> None:
+    audit_path = root / f"runs/{run_id}/reports/generated_code_runtime_audit.md"
+    audit_text = _read_text_or_empty(audit_path)
+    if not audit_text:
+        return
+    if "generated_code_used" not in audit_text:
+        _add(
+            issues,
+            "error",
+            "generated_code_runtime_audit_incomplete",
+            "Generated code runtime audit must declare generated_code_used.",
+            audit_path,
+        )
+        return
+    values = _semantic_report_values(audit_text)
+    if _boolish(values.get("generated_code_used")):
+        required_terms = (
+            "declared_markdown_authority",
+            "mechanical_purpose",
+            "semantic_non_authority_statement",
+            "inputs",
+            "outputs",
+            "executed_at",
+            "cleanup_status",
+            "safe_to_resume",
+        )
+        missing_terms = [term for term in required_terms if term not in audit_text]
+        if missing_terms:
+            _add(
+                issues,
+                "error",
+                "generated_code_runtime_audit_incomplete",
+                f"Generated code runtime audit is missing: {', '.join(missing_terms)}.",
+                audit_path,
+            )
+    if "semantic_authority: true" in audit_text or "owns_semantic_traversal: true" in audit_text:
+        _add(
+            issues,
+            "error",
+            "hidden_semantic_runtime_detected",
+            "Generated code audit declares semantic authority over graph content.",
+            audit_path,
+        )
+
+
+def _validate_domain_and_sample_audits(
+    root: Path,
+    run_id: str,
+    semantic_report: str,
+    issues: list[ProtocolAssetIssue],
+) -> None:
+    values = _semantic_report_values(semantic_report)
+    if values.get("semantic_acceptance_status", "").lower() != "passed":
+        return
+    domain_audit = _semantic_report_values(
+        _read_text_or_empty(root / f"runs/{run_id}/reports/domain_membership_audit.md")
+    )
+    sample_audit = _semantic_report_values(
+        _read_text_or_empty(root / f"runs/{run_id}/reports/semantic_sample_audit.md")
+    )
+    if domain_audit.get("domain_membership_audit_status", "").lower() != "passed":
+        _add(
+            issues,
+            "error",
+            "domain_membership_audit_failed",
+            "Passed semantic acceptance requires passed domain_membership_audit.md.",
+            root / f"runs/{run_id}/reports/domain_membership_audit.md",
+        )
+    if sample_audit.get("semantic_sample_audit_status", "").lower() != "passed":
+        _add(
+            issues,
+            "error",
+            "semantic_sample_audit_missing",
+            "Passed semantic acceptance requires passed semantic_sample_audit.md.",
+            root / f"runs/{run_id}/reports/semantic_sample_audit.md",
+        )
 
 
 def _validate_source_family_surface(
@@ -1036,6 +1307,105 @@ def _validate_make_graph_record_semantics(
                     graph_root,
                 )
                 break
+
+
+def _semantic_report_values(text: str) -> dict[str, str]:
+    values: dict[str, str] = {}
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped.startswith("|") and stripped.endswith("|"):
+            cells = [cell.strip().strip("`") for cell in stripped.strip("|").split("|")]
+            if len(cells) >= 2 and cells[0] not in {"key", "---"}:
+                values[cells[0]] = cells[1]
+            continue
+        if ":" in stripped and not stripped.startswith("#"):
+            key, value = stripped.split(":", 1)
+            cleaned_key = key.strip().strip("`* -")
+            if cleaned_key:
+                values[cleaned_key] = value.strip().strip("`* ")
+    return values
+
+
+def _boolish(value: str | None) -> bool:
+    return (value or "").strip().lower() in {"true", "yes", "passed", "1"}
+
+
+def _intish(value: str | None) -> int | None:
+    if value is None:
+        return None
+    cleaned = value.strip().replace(",", "")
+    try:
+        return int(cleaned)
+    except ValueError:
+        return None
+
+
+def _first_int_value(values: dict[str, str], keys: tuple[str, ...]) -> int | None:
+    for key in keys:
+        parsed = _intish(values.get(key))
+        if parsed is not None:
+            return parsed
+    return None
+
+
+def _require_report_value(
+    values: dict[str, str],
+    key: str,
+    expected: str,
+    issues: list[ProtocolAssetIssue],
+    code: str,
+    path: Path,
+) -> None:
+    if values.get(key, "").lower() != expected:
+        _add(issues, "error", code, f"Semantic report requires {key}: {expected}.", path)
+
+
+def _validate_expected_accepted_counts(
+    path: Path,
+    values: dict[str, str],
+    manifest: dict[str, Any],
+    issues: list[ProtocolAssetIssue],
+) -> None:
+    graph_build_target = _dict_value(manifest.get("graph_build_target"))
+    fiber_targets = _dict_value(graph_build_target.get("fiber_graph_targets"))
+    type_targets = _dict_value(graph_build_target.get("type_graph_targets"))
+    node_expected = fiber_targets.get("expected_node_instances")
+    if not isinstance(node_expected, int):
+        per_type = fiber_targets.get("instances_per_node_type")
+        node_type_count = type_targets.get("node_type_count")
+        if isinstance(per_type, int) and isinstance(node_type_count, int):
+            node_expected = per_type * node_type_count
+    edge_expected = _expected_edge_instances(manifest)
+    accepted_nodes = _first_int_value(
+        values,
+        ("accepted_fiber_nodes_counted", "accepted_source_backed_fiber_nodes"),
+    )
+    accepted_edges = _first_int_value(
+        values,
+        ("accepted_fiber_edges_counted", "accepted_edges_with_pair_specific_evidence"),
+    )
+    if (
+        isinstance(node_expected, int)
+        and accepted_nodes is not None
+        and accepted_nodes < node_expected
+    ):
+        _add(
+            issues,
+            "error",
+            "semantic_report_counter_contradiction",
+            "Passed semantic acceptance has fewer accepted fiber nodes than requested.",
+            path,
+        )
+    if edge_expected and accepted_edges is not None and accepted_edges < edge_expected:
+        _add(
+            issues,
+            "error",
+            "semantic_report_counter_contradiction",
+            "Passed semantic acceptance has fewer accepted fiber edges than requested.",
+            path,
+        )
 
 
 def _graph_has_target_scale_records(root: Path, manifest: dict[str, Any]) -> bool:

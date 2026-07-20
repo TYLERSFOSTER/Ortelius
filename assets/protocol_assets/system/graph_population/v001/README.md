@@ -37,3 +37,15 @@ assets/protocol_assets/bundles/<domain_slug>/<protocol_id>/
 
 This directory does not contain populated graph facts, live crawl results, or a
 hard Python interpreter that calls Codex/OpenAI APIs.
+
+## Post-run correction gates
+
+For ordinary `MAKE-GRAPH`, v001 now treats semantic completion as stricter than
+structural JSON validity. A generated bundle must materialize graph intent
+before source probing, express source reconnaissance through Markdown batch
+packets, audit any generated mechanical code, separate candidate records from
+accepted target-counting records, pass domain membership and semantic sample
+audits, and reconcile accepted counts before claiming completion.
+
+If semantic acceptance is incomplete, Codex should report that the graph is not
+complete before reporting raw counts or structural validation.

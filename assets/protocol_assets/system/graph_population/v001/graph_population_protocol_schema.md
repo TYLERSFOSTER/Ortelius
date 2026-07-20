@@ -121,6 +121,177 @@ it, point Codex at the control protocol instead:
 assets/protocol_assets/system/graph_population/v001/graph_population_control_protocol.md
 ```
 
+
+## Post-Run Correction Directives
+
+These directives are normative corrections from full-scale MAKE-GRAPH testing.
+They exist to prevent a contextless Codex from treating structurally valid JSON
+or raw record counts as semantic graph completion.
+
+### Post-Confirmation Materialization Gate
+
+After graph intent is confirmed or explicitly authorized for inference, the next
+legal graph-building action is to materialize the graph intent contract and the
+initial bundle control surface. Source probing remains illegal until these
+artifacts exist in the generated bundle:
+
+```text
+runs/<run_id>/reports/graph_intent_contract.md
+control_loop_plan.md
+runs/<run_id>/cursor.json
+runs/<run_id>/execution_log.md
+```
+
+The graph intent contract must include:
+
+```text
+domain_label
+graph_intent_status
+intent_resolution_mode
+confirmed_or_authorized_lens
+included_lenses
+excluded_lenses
+ordinary_entity_scope
+relation_scope
+source_scope
+domain_membership_rule
+type_membership_rule
+edge_evidence_rule
+downstream_gate
+created_before_source_probe: true
+next_legal_action_after_contract
+```
+
+If source probing, source-adapter testing, type discovery, edge discovery,
+instance discovery, or graph JSON writing occurs before this materialization,
+stop with `graph_intent_materialization_order_violation`.
+
+### Markdown-First Source Reconnaissance Directive
+
+Source reconnaissance must be planned in Markdown before it is executed. Codex
+must write these run artifacts before any source result influences graph shape:
+
+```text
+runs/<run_id>/reports/source_reconnaissance_plan.md
+runs/<run_id>/reports/source_family_registry.md
+runs/<run_id>/reports/source_landscape_map.md
+runs/<run_id>/reports/source_adapter_recovery_plan.md
+runs/<run_id>/reports/source_strategy_decision_log.md
+runs/<run_id>/batch_packets/*.md
+```
+
+The source reconnaissance plan must define:
+
+```text
+graph_intent_contract_path
+source_scope
+source_families
+source_adapters
+source_family_priority
+source_adapter_recovery_order
+minimum_domain_membership_evidence
+minimum_type_membership_evidence
+minimum_edge_pair_evidence
+batching_strategy
+failure_policy
+next_legal_action
+```
+
+A source batch cache by itself is not a plan. Every source batch that influences
+candidate selection or graph JSON must have a prior Markdown batch packet. If a
+source result exists without a declared batch packet, stop with
+`source_result_without_declared_batch`.
+
+### Generated Code Runtime Audit
+
+Python, shell, notebooks, or inline code may perform only declared mechanical
+work after the controlling Markdown artifact exists. Mechanical work includes
+validation, serialization, counting, deterministic sorting, ID normalization,
+referential checks, and executing a declared source query from a Markdown batch
+packet.
+
+Generated code must not decide graph intent, source strategy, semantic type
+selection, semantic edge selection, accepted/candidate status, or target-filling
+policy. If generated code is used at all during MAKE-GRAPH execution, the run
+must maintain:
+
+```text
+runs/<run_id>/reports/generated_code_runtime_audit.md
+```
+
+The audit must declare `generated_code_used: true` or `generated_code_used:
+false`. When true, it must include `declared_markdown_authority`,
+`mechanical_purpose`, `semantic_non_authority_statement`, `inputs`, `outputs`,
+`executed_at`, `cleanup_status`, and `safe_to_resume`. Missing audit means
+`hidden_runtime_audit_missing`. Generated code that owns semantic traversal
+means `hidden_semantic_runtime_detected`.
+
+### Domain Membership Acceptance Rule
+
+Source query shape creates candidates, not accepted records. QIDs, URLs, labels,
+search hits, source classes, endpoint co-presence, or adapter result membership
+do not by themselves prove domain membership.
+
+An accepted fiber node must satisfy all of these predicates in source-backed,
+human-readable form:
+
+```text
+type_membership_predicate
+domain_membership_predicate
+graph_intent_fit_predicate
+source_backing_predicate
+field_sufficiency_predicate
+```
+
+Records that are only source-shape matches must remain candidate records with a
+non-counting status such as `candidate_source_shape_only`,
+`candidate_domain_membership_uncertain`, `candidate_type_membership_uncertain`,
+`candidate_graph_intent_uncertain`, `rejected`, or `deferred`. Candidate,
+rejected, and deferred records never count toward MAKE-GRAPH targets.
+
+### Semantic Sample Audit
+
+Before semantic completion, every MAKE-GRAPH run must write and pass:
+
+```text
+runs/<run_id>/reports/semantic_sample_audit.md
+```
+
+The audit must sample accepted records in human-readable form and check domain
+membership, type assignment, graph-intent fit, primitive relation status, and
+pair evidence. If an accepted sample is plainly wrong, stop with
+`domain_membership_audit_failed` or a more precise semantic failure. If labels
+or evidence are too sparse to audit, stop with `semantic_sample_audit_limited`.
+
+### Accepted Target Reconciliation
+
+MAKE-GRAPH target counts are accepted semantic targets, not raw JSON record
+counts. Semantic reports must reconcile raw records, accepted records, candidate
+records, rejected records, synthetic/completion records, and target satisfaction.
+
+Required counters include:
+
+```text
+requested_node_types
+accepted_node_types
+requested_edge_types
+accepted_edge_types
+requested_fiber_nodes_per_type
+accepted_fiber_nodes_counted
+candidate_fiber_node_records
+requested_fiber_edges_per_type
+accepted_fiber_edges_counted
+candidate_fiber_edge_records
+synthetic_or_completion_records_counted_toward_target: false
+candidate_records_counted_toward_target: false
+graph_build_targets_met
+semantic_acceptance_status
+```
+
+If `semantic_acceptance_status` is not `passed`, the graph is not complete. The
+final response must say that first. Structural validation success may be
+reported only as supporting detail.
+
 ## Corrected Soft Control Flow Diagram
 
 This diagram is the whole-system control flow. It is normative for both the
@@ -148,7 +319,7 @@ flowchart TD
   C5 --> C6["Initialize candidate graph JSON files"]
   C6 --> C7["Initialize run artifacts: structured cursor, initialized execution_log, source_batch_plan, reports, source_batches, batch_packets, tool_outputs"]
   C7 --> C7I["MAKE-GRAPH: write graph_intent_contract.md as the first run report artifact"]
-  C7I --> C7A["MAKE-GRAPH: initialize source landscape map, source family registry, adapter frontier, and source strategy log"]
+  C7I --> C7A["MAKE-GRAPH: initialize source reconnaissance plan, landscape map, source family registry, adapter frontier, recovery plan, and source strategy log"]
   C7A --> C7B["MAKE-GRAPH: initialize joint population feasibility and endpoint reservation plans"]
   C7B --> C8["Run generated-bundle acceptance checks"]
   C8 --> C9["Write runs/<run_id>/reports/generated_bundle_acceptance_report.md"]
@@ -164,7 +335,7 @@ flowchart TD
   E3 --> E4["Reconcile graph paths and inspect current graph JSON state"]
   E4 --> E4I{"MAKE-GRAPH graph intent contract valid?"}
   E4I -->|"no"| S
-  E4I -->|"yes"| E4A{"MAKE-GRAPH source landscape and joint population control surfaces valid?"}
+  E4I -->|"yes"| E4A{"MAKE-GRAPH source reconnaissance, runtime audit, and joint population control surfaces valid?"}
   E4A -->|"no"| S
   E4A -->|"yes"| E5["Derive next legal bounded action from manifest order, loop spec, cursor, log, and repo reality"]
   E5 --> E6["Execute one Markdown-authorized action"]

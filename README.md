@@ -53,6 +53,12 @@ exclusions, or competency questions, but the system owns the detection step.
 Generated bundles are local runtime artifacts. They are ignored by git by
 default.
 
+Raw JSON record counts are not graph completion. For ordinary `MAKE-GRAPH`,
+completion requires semantic acceptance: graph intent fit, source-backed domain
+membership, field sufficiency, pair-specific edge evidence, semantic sample
+audit, and accepted-versus-candidate target reconciliation. Candidate records
+can be useful frontier state, but they do not count toward requested targets.
+
 ### Two Scales Of Control
 
 Ortelius uses Codex at two scales of control: globally, as a policy-driven

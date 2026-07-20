@@ -42,6 +42,8 @@ assets/protocol_assets/system/graph_population/v001/graph_population_control_pro
 The generated bundle must use declared graph IDs and must not assume any
 domain-specific graph names.
 
+Post-confirmation order for `MAKE-GRAPH`: after graph intent is confirmed or explicitly authorized, Codex must materialize `graph_intent_contract.md`, `control_loop_plan.md`, cursor/log state, and the source reconnaissance plan before any source probe. Source reconnaissance must be expressed in Markdown batch packets before execution. Generated helper code may only perform declared mechanical work and requires `generated_code_runtime_audit.md`; it must not decide semantic graph content. Accepted target counts mean accepted semantic records, not raw JSON records.
+
 Front-door note for `MAKE-GRAPH`: a minimal prompt with only domain + target
 counts is valid and sufficient. If graph intent is missing and the domain is
 broad or multi-model, Codex must run GraphIntentAlignment.Domain.ResolveIntent,

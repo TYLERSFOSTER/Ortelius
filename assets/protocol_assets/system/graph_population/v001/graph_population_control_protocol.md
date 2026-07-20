@@ -32,6 +32,104 @@ at the schema first:
 assets/protocol_assets/system/graph_population/v001/graph_population_protocol_schema.md
 ```
 
+
+## Post-Run Correction Execution Gates
+
+These gates are normative for contextless execution. They prevent the executor
+from pushing through in the wrong place: Codex must push through recoverable
+source and semantic difficulty by expanding explicit Markdown loops, not by
+skipping gates, inventing hidden scripts, or counting weak records as complete.
+
+### GraphIntentContract.MaterializationGate
+
+For ordinary MAKE-GRAPH bundles, verify before any source, type, edge, instance,
+or graph-writing action:
+
+```text
+manifest.graph_intent exists
+runs/<run_id>/reports/graph_intent_contract.md exists
+graph_intent_status is confirmed or explicitly_authorized_inference
+created_before_source_probe: true
+downstream_gate exists
+next_legal_action_after_contract is source reconnaissance planning
+```
+
+If a source probe or source result exists before the contract is materialized,
+stop with `graph_intent_materialization_order_violation`. If confirmation is
+missing, stop with `graph_intent_confirmation_required`. Passing this gate
+advances only to source reconnaissance planning, not directly to source probing.
+
+### SourceReconnaissance Markdown Loop
+
+Source reconnaissance is a Markdown-controlled loop with this order:
+
+```text
+SourceReconnaissance.PlanWrite
+SourceReconnaissance.BatchPacketWrite
+SourceReconnaissance.BatchExecute
+SourceReconnaissance.ResultReview
+```
+
+The executor must not execute a source batch until the batch packet exists and
+contains the candidate rows or selection rule, acceptance criteria, rejection
+criteria, source batch cache path, write targets, cursor update rule, and resume
+point. If source results exist without a declared batch packet, stop with
+`source_result_without_declared_batch`.
+
+### GeneratedCode.RuntimeAuditGate
+
+If generated helper code, temporary code, inline Python, shell, notebooks, or
+SQL-like helpers are used during a run, verify
+`runs/<run_id>/reports/generated_code_runtime_audit.md` before accepting any
+result the code produced.
+
+The audit must show that code had a mechanical purpose and that a prior
+Markdown artifact owned the decision. Missing audit means
+`hidden_runtime_audit_missing`. Code that selected semantic graph content,
+filled targets, chose accepted/candidate status, or owned traversal means
+`hidden_semantic_runtime_detected`.
+
+### FiberGraph.Node.DomainMembershipReview
+
+Before fiber nodes become accepted, run a domain-membership review. Each
+reviewed record must become accepted, candidate, rejected, or deferred. A record
+with only source-query-shape evidence remains candidate. Candidate, rejected,
+and deferred records do not count toward MAKE-GRAPH targets.
+
+Write or update:
+
+```text
+runs/<run_id>/reports/domain_membership_audit.md
+```
+
+### FiberGraph.Edge.PairEvidenceReview
+
+Before fiber edges become accepted, verify accepted endpoints, accepted edge
+type, pair-specific evidence for the exact source-predicate-target assertion,
+primitive relation status, and graph-intent fit. Endpoint co-presence, shared
+bucket membership, deterministic pairing, and SQL-query-like derivation are not
+pair evidence. Candidate edge records may remain in a frontier, but they do not
+count toward targets.
+
+### SemanticAcceptance.SampleAudit
+
+Before final semantic acceptance, run the semantic sample audit over accepted
+node and edge records. If accepted samples expose wrong domain membership, wrong
+type assignment, non-primitive relation shape, or missing pair evidence, the
+run must stop for repair. Do not downgrade target-counting semantic errors to
+warnings.
+
+### Completion.SemanticAcceptanceGate
+
+Completion requires `semantic_acceptance_status: passed`, accepted target
+reconciliation, domain membership audit passed, semantic sample audit passed,
+no candidate records counted toward targets, no synthetic/completion records
+counted toward targets, and no contradictory counters.
+
+If semantic acceptance is not passed, final narration must begin by saying the
+graph is not complete. Raw counts, structural validation success, or generated
+file paths may follow only as supporting detail.
+
 ## Corrected Soft Control Flow Diagram
 
 This diagram is the whole-system control flow. It is normative for both the
@@ -59,7 +157,7 @@ flowchart TD
   C5 --> C6["Initialize candidate graph JSON files"]
   C6 --> C7["Initialize run artifacts: structured cursor, initialized execution_log, source_batch_plan, reports, source_batches, batch_packets, tool_outputs"]
   C7 --> C7I["MAKE-GRAPH: write graph_intent_contract.md as the first run report artifact"]
-  C7I --> C7A["MAKE-GRAPH: initialize source landscape map, source family registry, adapter frontier, and source strategy log"]
+  C7I --> C7A["MAKE-GRAPH: initialize source reconnaissance plan, landscape map, source family registry, adapter frontier, recovery plan, and source strategy log"]
   C7A --> C7B["MAKE-GRAPH: initialize joint population feasibility and endpoint reservation plans"]
   C7B --> C8["Run generated-bundle acceptance checks"]
   C8 --> C9["Write runs/<run_id>/reports/generated_bundle_acceptance_report.md"]
@@ -75,7 +173,7 @@ flowchart TD
   E3 --> E4["Reconcile graph paths and inspect current graph JSON state"]
   E4 --> E4I{"MAKE-GRAPH graph intent contract valid?"}
   E4I -->|"no"| S
-  E4I -->|"yes"| E4A{"MAKE-GRAPH source landscape and joint population control surfaces valid?"}
+  E4I -->|"yes"| E4A{"MAKE-GRAPH source reconnaissance, runtime audit, and joint population control surfaces valid?"}
   E4A -->|"no"| S
   E4A -->|"yes"| E5["Derive next legal bounded action from manifest order, loop spec, cursor, log, and repo reality"]
   E5 --> E6["Execute one Markdown-authorized action"]

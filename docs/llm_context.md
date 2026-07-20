@@ -42,6 +42,16 @@ graph quality.
 The protocol docs tell Codex how to structure the workflow. The Python package
 validates and materializes the graph JSON that workflow produces.
 
+Semantic completion is stricter than structural validation. For ordinary
+`MAKE-GRAPH`, raw JSON counts do not satisfy targets unless the records are
+accepted, source-backed, field-sufficient, graph-intent-fit, and reconciled in
+the semantic acceptance report. Candidate records, deterministic completion
+records, and source-shape-only records do not count toward requested targets.
+
+Source reconnaissance is Markdown-first: Codex must materialize graph intent,
+write source plans and batch packets, and audit generated mechanical code before
+source results can shape graph records.
+
 ## Graph Model
 
 Ortelius uses two graph IDs:
