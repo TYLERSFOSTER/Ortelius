@@ -315,6 +315,41 @@ GENERATED_CODE_SEMANTIC_PATTERNS = (
     "graph_build_targets_met",
 )
 
+GENERATED_CODE_EMPTY_OUTPUT_CELLS = frozenset(
+    {"", "none", "n/a", "na", "false", "no", "0", "not_applicable"}
+)
+
+GENERATED_CODE_GRAPH_OUTPUT_MARKERS = (
+    "candidate_graphs",
+    "graph json",
+    "graph_json",
+    "nodes.json",
+    "edges.json",
+    "type graph",
+    "fiber graph",
+)
+
+GENERATED_CODE_SEMANTIC_REPORT_OUTPUT_MARKERS = (
+    "run reports",
+    "semantic report",
+    "semantic_acceptance_report",
+    "type_candidate_review",
+    "type_field_discovery_report",
+    "edge_candidate_review",
+    "edge_family_diversity_report",
+    "edge_field_discovery_report",
+    "domain_membership_boundary_report",
+    "source_evidence_accounting_report",
+    "semantic_sample_audit",
+)
+
+GENERATED_CODE_DELETED_MARKERS = (
+    "removed",
+    "deleted",
+    "cleaned up",
+    "not retained",
+)
+
 TABLE_PLACEHOLDER_MARKERS = (
     "todo",
     "tbd",
@@ -638,7 +673,7 @@ def validate_system_protocol_assets(system_root: str | Path) -> ProtocolAssetRep
         )
         _require_text(
             control_protocol,
-            "RowBackedSemanticAcceptanceGate",
+            "DomainEntitySemanticAcceptanceGate",
             issues,
             "missing_semantic_acceptance_hardening",
         )
@@ -697,7 +732,7 @@ def validate_system_protocol_assets(system_root: str | Path) -> ProtocolAssetRep
         )
         _require_text(
             execute_prompt,
-            "row-backed semantic acceptance",
+            "source-evidenced domain-entity acceptance",
             issues,
             "missing_semantic_acceptance_hardening",
         )
@@ -1029,7 +1064,7 @@ def _validate_make_graph_semantic_contract(
     _validate_source_reconnaissance_surface(root, run_id, issues)
     _validate_source_family_surface(root, run_id, manifest, issues)
     _validate_source_probe_event_ledger(root, run_id, manifest, issues)
-    _validate_row_backed_semantic_reports(root, run_id, manifest, semantic_report, issues)
+    _validate_source_evidenced_semantic_reports(root, run_id, manifest, semantic_report, issues)
     _validate_semantic_plan_authority_report(root, run_id, issues)
     _validate_generated_code_runtime_audit(root, run_id, issues)
     _validate_domain_and_sample_audits(root, run_id, semantic_report, issues)
@@ -1347,6 +1382,8 @@ def _validate_generated_code_runtime_audit(
             "Generated code audit declares semantic authority over graph content.",
             audit_path,
         )
+    if _boolish(values.get("generated_code_used")):
+        _validate_generated_code_output_claims(audit_path, audit_text, values, issues)
     if code_files:
         _require_table_with_columns(
             audit_path,
@@ -1378,6 +1415,90 @@ def _validate_generated_code_runtime_audit(
                         code_file,
                     )
                     break
+
+
+def _validate_generated_code_output_claims(
+    audit_path: Path,
+    audit_text: str,
+    values: dict[str, str],
+    issues: list[ProtocolAssetIssue],
+) -> None:
+    graph_write_detected = _contains_forbidden_graph_output(values.get("outputs", ""))
+    report_write_detected = _contains_forbidden_semantic_report_output(
+        values.get("outputs", "")
+    )
+    deleted_after_write = _contains_deleted_marker(values.get("cleanup_status", ""))
+
+    rows = _rows_with_columns(audit_text, GENERATED_CODE_AUDIT_COLUMNS)
+    for row in rows:
+        if not _truthy_cell(row.get("used")):
+            continue
+        graph_outputs = row.get("graph_outputs_written", "")
+        reports_written = row.get("reports_written", "")
+        notes = row.get("notes", "")
+        cleanup_context = " ".join(
+            value for value in (values.get("cleanup_status", ""), notes) if value
+        )
+        if _contains_forbidden_graph_output(graph_outputs):
+            graph_write_detected = True
+        if _contains_forbidden_semantic_report_output(reports_written):
+            report_write_detected = True
+        if _contains_deleted_marker(cleanup_context):
+            deleted_after_write = True
+
+    if graph_write_detected:
+        _add(
+            issues,
+            "error",
+            "generated_code_graph_write_forbidden",
+            "Generated code must not write graph JSON for ordinary MAKE-GRAPH runs.",
+            audit_path,
+        )
+    if report_write_detected:
+        _add(
+            issues,
+            "error",
+            "generated_code_semantic_report_write_forbidden",
+            "Generated code must not write semantic acceptance or graph-shaping reports.",
+            audit_path,
+        )
+    if (graph_write_detected or report_write_detected) and deleted_after_write:
+        _add(
+            issues,
+            "error",
+            "deleted_generated_code_authority_uninspectable",
+            "Generated code that wrote graph or semantic report outputs was deleted, "
+            "so the graph-building step is not inspectable.",
+            audit_path,
+        )
+
+
+def _rows_with_columns(text: str, columns: tuple[str, ...]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for headers, table_rows in _markdown_tables(text):
+        normalized_headers = {_normalize_table_cell(header) for header in headers}
+        if all(column in normalized_headers for column in columns):
+            rows.extend(table_rows)
+    return rows
+
+
+def _contains_forbidden_graph_output(value: str | None) -> bool:
+    cleaned = (value or "").strip().lower()
+    if cleaned in GENERATED_CODE_EMPTY_OUTPUT_CELLS:
+        return False
+    return any(marker in cleaned for marker in GENERATED_CODE_GRAPH_OUTPUT_MARKERS)
+
+
+def _contains_forbidden_semantic_report_output(value: str | None) -> bool:
+    cleaned = (value or "").strip().lower()
+    if cleaned in GENERATED_CODE_EMPTY_OUTPUT_CELLS:
+        return False
+    return any(marker in cleaned for marker in GENERATED_CODE_SEMANTIC_REPORT_OUTPUT_MARKERS)
+
+
+def _contains_deleted_marker(value: str | None) -> bool:
+    cleaned = (value or "").strip().lower()
+    return any(marker in cleaned for marker in GENERATED_CODE_DELETED_MARKERS)
 
 
 def _validate_domain_and_sample_audits(
@@ -1581,7 +1702,7 @@ def _validate_semantic_plan_authority_report(
         )
 
 
-def _validate_row_backed_semantic_reports(
+def _validate_source_evidenced_semantic_reports(
     root: Path,
     run_id: str,
     manifest: dict[str, Any],

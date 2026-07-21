@@ -47,7 +47,7 @@ For ordinary `MAKE-GRAPH`, v001 now treats semantic completion as stricter than
 structural JSON validity. A generated bundle must materialize graph intent
 before source probing, express source reconnaissance through Markdown batch
 packets, audit any generated mechanical code, separate candidate records from
-accepted target-counting records, pass row-backed field, relation-family,
+accepted target-counting records, pass source-evidenced field, relation-family,
 domain membership, source evidence, label quality, and semantic sample audits,
 and reconcile accepted counts before claiming completion.
 

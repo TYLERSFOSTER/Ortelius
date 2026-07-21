@@ -130,12 +130,16 @@ If semantic acceptance is not passed, final narration must begin by saying the
 graph is not complete. Raw counts, structural validation success, or generated
 file paths may follow only as supporting detail.
 
-### RowBackedSemanticAcceptanceGate
+### DomainEntitySemanticAcceptanceGate
 
-For ordinary `MAKE-GRAPH`, semantic acceptance is a row-backed Markdown gate.
-The executor must not accept a pass/fail declaration, source-query count, raw
-graph JSON count, or generated script output as semantic completion unless the
-required run reports contain inspectable rows.
+For ordinary `MAKE-GRAPH`, semantic acceptance is a source-evidenced
+domain-entity gate. Source rows are evidence for accepted graph records; they
+are not the graph population unit, multiplication unit, schema template, or
+completion target. The executor must not accept a pass/fail declaration,
+source-query count, source-row count, row-projection count, raw graph JSON
+count, or generated script output as semantic completion unless the required
+run reports show that accepted records are domain entities/events/objects or
+primitive domain relations with source evidence.
 
 Before setting `semantic_acceptance_status: passed`, verify:
 
@@ -154,16 +158,22 @@ runs/<run_id>/reports/semantic_sample_audit.md
 runs/<run_id>/reports/semantic_acceptance_report.md
 ```
 
-The reports must contain rows, not only summaries. If a report says "sampled 90
-records and all passed" but does not list the sample rows, stop with
-`semantic_sample_rows_missing` or `semantic_sample_audit_self_certifying`.
+The reports must contain rows, not only summaries. Report rows are audit
+surfaces, not source rows to multiply into accepted graph records. If a report
+says "sampled 90 records and all passed" but does not list the sample rows,
+stop with `semantic_sample_rows_missing` or
+`semantic_sample_audit_self_certifying`. If accepted counts are achieved by
+shredding each source row into one record per type or edge type, stop with
+`source_row_projection_inflation`.
 
 ### GeneratedCode.NonAuthorityGate
 
 Generated helper code is allowed only for mechanical work authorized by prior
-Markdown. It may convert Markdown-authorized rows to JSON, normalize IDs, count
+Markdown. It may normalize IDs in already-authored non-graph artifacts, count
 records, validate shape, or run a source query already specified by a Markdown
-batch packet.
+batch packet. For ordinary `MAKE-GRAPH`, it must not create or write type graph
+JSON, fiber graph JSON, semantic acceptance reports, or graph-shaping reports
+from source rows.
 
 Generated code must not contain or author semantic inventories, accepted type
 lists, accepted edge lists, source strategy, field discovery, domain membership
@@ -230,7 +240,8 @@ or used only for audit/recovery.
 
 Fallback availability is not evidence diversity. A single-source-family run can
 pass only when `single_authoritative_source_family_exception` is explicit,
-domain-intent-fit, and reviewed in the semantic sample audit.
+domain-intent-fit, reviewed in the semantic sample audit, and not produced by
+silently narrowing a broad domain into a source-record normalization graph.
 
 ## Corrected Soft Control Flow Diagram
 

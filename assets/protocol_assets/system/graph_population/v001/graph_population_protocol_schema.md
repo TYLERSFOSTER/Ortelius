@@ -294,17 +294,23 @@ reported only as supporting detail.
 
 ### Semantic Acceptance Hardening Directive
 
-Ordinary `MAKE-GRAPH` completion requires row-backed semantic acceptance. A
-report heading, summary counter, source-query count, raw graph JSON count, or
-generated script output is not enough. Semantic acceptance must be falsifiable
-from repo-local Markdown/JSON artifacts by a Codex instance with zero prior
-conversation context.
+Ordinary `MAKE-GRAPH` completion requires source-evidenced domain-entity
+acceptance. Source rows are evidence for graph records; they are not themselves
+the population unit, multiplication unit, schema template, or completion target.
+A report heading, summary counter, source-query count, source-row count,
+row-projection count, raw graph JSON count, or generated script output is not
+enough. Semantic acceptance must be falsifiable from repo-local Markdown/JSON
+artifacts by a Codex instance with zero prior conversation context.
 
 The generated Markdown/JSON bundle is the workflow program. Generated code may
 perform declared mechanical work only after a controlling Markdown artifact
 exists. Generated code must not author graph intent, source strategy, type
 candidate inventory, edge candidate inventory, field discovery, acceptance
-judgments, target-filling policy, or final semantic completion.
+judgments, target-filling policy, graph JSON records, graph-shaping reports, or
+final semantic completion. For ordinary `MAKE-GRAPH`, helper code must not turn
+source rows into type/fiber graph JSON; source rows must pass through the
+Markdown loop surface as evidence for domain entities and primitive domain
+relations.
 
 For every ordinary `MAKE-GRAPH` bundle, initialize and maintain these additional
 reports:
@@ -336,14 +342,16 @@ triggering Markdown artifact and batch id that authorized the event. Source
 events before graph intent, source reconnaissance, and batch-packet authority
 fail with `source_probe_before_markdown_authority`.
 
-`type_candidate_review.md` must row-review candidate type nodes before type
-graph writes. Accepted type rows must show source evidence, source family,
-source adapter, graph-intent fit, ordinary-entity status,
-`fiber_population_eligible`, and the acceptance reason. Source taxonomy labels,
-source categories, schema categories, provenance categories, evidence object
-classes, adapter result classes, claim target buckets, and query-result
-convenience buckets are not ordinary type nodes unless the graph intent
-explicitly makes them concrete domain entities.
+`type_candidate_review.md` must review candidate type nodes before type graph
+writes. Accepted type rows must show source evidence, source family, source
+adapter, graph-intent fit, ordinary-entity status, `fiber_population_eligible`,
+and the acceptance reason. Accepted type rows must represent domain entity,
+domain event, domain object, domain role, or explicitly human-authorized reified
+record types. Source taxonomy labels, source categories, schema categories,
+provenance categories, evidence object classes, adapter result classes, source
+record projections, source-column statements, claim target buckets, and
+query-result convenience buckets are not ordinary type nodes unless the graph
+intent explicitly makes them concrete domain entities.
 
 `type_field_discovery_report.md` must be produced by a per-type deep field
 discovery loop after the type set is frozen. Each accepted ordinary type needs
@@ -389,10 +397,11 @@ evidence diversity. A single source family may pass only through an explicit
 labels. Source-id-only labels, opaque IDs, and unrepairable labels cannot count
 toward semantic targets unless the run stops as label-limited.
 
-The final `semantic_acceptance_report.md` must reconcile these row-backed
-reports. If raw counts are met but any row-backed semantic gate is missing,
-incomplete, contradictory, or failed, the status is
-`semantic_acceptance_incomplete`, not `passed`.
+The final `semantic_acceptance_report.md` must reconcile these
+source-evidenced domain-entity reports. If raw counts are met but any
+source-evidenced semantic gate is missing, incomplete, contradictory, or failed,
+or if target counts were reached by multiplying source rows through schema
+projections, the status is `semantic_acceptance_incomplete`, not `passed`.
 
 ## Corrected Soft Control Flow Diagram
 
