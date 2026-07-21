@@ -43,7 +43,13 @@ MAKE_GRAPH_TABLES = (
 )
 
 
-def _promote_fixture_to_make_graph(bundle: Path) -> dict:
+def _promote_fixture_to_make_graph(
+    bundle: Path,
+    *,
+    node_instances: int = 1,
+    edge_instances: int = 1,
+    reduced_mode: str | None = "test_fixture",
+) -> dict:
     manifest_path = bundle / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     manifest["front_door_mode"] = "MAKE-GRAPH"
@@ -67,12 +73,15 @@ def _promote_fixture_to_make_graph(bundle: Path) -> dict:
         "completion_target": "graph_build_targets_met",
         "type_graph_targets": {"node_type_count": 1, "edge_type_count": 1},
         "fiber_graph_targets": {
-            "instances_per_node_type": 1,
-            "instances_per_edge_type": 1,
-            "expected_node_instances": 1,
-            "expected_edge_instances": 1,
+            "instances_per_node_type": node_instances,
+            "instances_per_edge_type": edge_instances,
+            "expected_node_instances": node_instances,
+            "expected_edge_instances": edge_instances,
         },
     }
+    if reduced_mode is not None:
+        manifest["graph_build_target"]["reduced_mode"] = reduced_mode
+        manifest.setdefault("run_contract_completeness", {})["reduced_mode"] = reduced_mode
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     cursor_path = bundle / "runs" / "run_001" / "cursor.json"
     cursor = json.loads(cursor_path.read_text(encoding="utf-8"))
@@ -507,6 +516,470 @@ def _write_shallow_make_graph_records(bundle: Path) -> None:
         ),
         encoding="utf-8",
     )
+
+
+def _write_rich_type_records(bundle: Path) -> None:
+    type_node = {
+        "id": "tg.node.artist",
+        "label": "Fixture Type",
+        "status": "accepted",
+        "fiber_population_eligible": True,
+        "graph_intent_fit": "fits fixture validation lens",
+        "supported_competency_questions": [
+            "What fixture records validate the protocol?"
+        ],
+        "type_membership_predicate": "source record says fixture type",
+        "domain_membership_predicate": "source record says fixture domain",
+        "domain_exclusion_predicate": "exclude generic source-only matches",
+        "type_fields": {
+            "fields": {
+                "name": {
+                    "label": "Name",
+                    "value_kind": "string",
+                    "cardinality": "required_one",
+                    "description": "Fixture identity field.",
+                    "source_policy": "recommended",
+                    "field_tier": "identity_field",
+                },
+                "practice_area": {
+                    "label": "Practice Area",
+                    "value_kind": "string",
+                    "cardinality": "optional_one",
+                    "description": "Fixture domain field.",
+                    "source_policy": "recommended",
+                    "field_tier": "domain_descriptive_field",
+                },
+                "active_period": {
+                    "label": "Active Period",
+                    "value_kind": "string",
+                    "cardinality": "optional_one",
+                    "description": "Fixture domain field.",
+                    "source_policy": "recommended",
+                    "field_tier": "domain_descriptive_field",
+                },
+                "institutional_role": {
+                    "label": "Institutional Role",
+                    "value_kind": "string",
+                    "cardinality": "optional_one",
+                    "description": "Fixture domain field.",
+                    "source_policy": "recommended",
+                    "field_tier": "domain_descriptive_field",
+                },
+            }
+        },
+    }
+    type_edge = {
+        "id": "tg.edge.related_to",
+        "label": "Fixture relation",
+        "status": "accepted",
+        "source_type_id": "tg.node.artist",
+        "target_type_id": "tg.node.artist",
+        "directed": True,
+        "relation_family": "fixture_relation_family",
+        "pair_evidence_feasibility_status": "source_rows_available",
+        "graph_intent_fit": "fits fixture validation lens",
+        "supported_competency_questions": [
+            "What fixture records validate the protocol?"
+        ],
+        "type_fields": {
+            "fields": {
+                "relation_context": {
+                    "label": "Relation Context",
+                    "value_kind": "string",
+                    "cardinality": "optional_one",
+                    "description": "Fixture relation field.",
+                    "source_policy": "recommended",
+                    "field_tier": "relation_descriptive_field",
+                },
+                "pair_evidence": {
+                    "label": "Pair Evidence",
+                    "value_kind": "text",
+                    "cardinality": "required_one",
+                    "description": "Fixture pair evidence field.",
+                    "source_policy": "required",
+                    "field_tier": "pair_evidence_field",
+                },
+            }
+        },
+    }
+    (bundle / "candidate_graphs" / "tg" / "nodes.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "ortelius.graph.v0",
+                "graph_id": "tg",
+                "record_kind": "nodes",
+                "records": [type_node],
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    (bundle / "candidate_graphs" / "tg" / "edges.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "ortelius.graph.v0",
+                "graph_id": "tg",
+                "record_kind": "edges",
+                "records": [type_edge],
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+
+def _write_source_batch_rows(bundle: Path) -> None:
+    source_batches = bundle / "runs" / "run_001" / "source_batches"
+    source_batches.mkdir(parents=True, exist_ok=True)
+    (source_batches / "fixture_batch.json").write_text(
+        json.dumps(
+            {
+                "batch_id": "fixture_batch",
+                "loop_id": "instance_discovery",
+                "source_adapter_id": "alpha_api",
+                "query_or_operation": "fixture row retrieval",
+                "retrieved_at": "fixture time",
+                "source_endpoint": "https://example.test/alpha",
+                "source_boundary": "fixture source boundary",
+                "filter_rule_applied": "fixture filter",
+                "markdown_report_path": "runs/run_001/reports/domain_membership_boundary_report.md",
+                "selection_authority": "runs/run_001/reports/domain_membership_boundary_report.md",
+                "returned_count": 2,
+                "selected_count": 2,
+                "rejected_count": 0,
+                "next_batch_cursor": None,
+                "records": [
+                    {
+                        "row_id": "source_row_001",
+                        "source_family": "source_family_alpha",
+                        "source_adapter_id": "alpha_api",
+                        "source_endpoint": "https://example.test/alpha",
+                        "source_url": "https://example.test/alpha/row/1",
+                        "label": "Fixture Instance 1",
+                        "domain_membership_evidence": "fixture domain row",
+                        "type_membership_evidence": "fixture type row",
+                    },
+                    {
+                        "row_id": "pair_row_001",
+                        "source_family": "source_family_beta",
+                        "source_adapter_id": "beta_catalog",
+                        "source_endpoint": "https://example.test/beta",
+                        "source_url": "https://example.test/beta/pair/1",
+                        "label": "Fixture pair evidence",
+                        "source_row_id": "source_row_001",
+                        "target_row_id": "source_row_001",
+                        "predicate_or_relation_evidence": "fixture primitive relation",
+                        "pair_specific_evidence_source": "https://example.test/beta/pair/1",
+                        "relation_family_mapping": "fixture_relation_family",
+                    },
+                ],
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+
+def _write_counter_only_source_batch(bundle: Path) -> None:
+    source_batches = bundle / "runs" / "run_001" / "source_batches"
+    source_batches.mkdir(parents=True, exist_ok=True)
+    (source_batches / "fixture_batch.json").write_text(
+        json.dumps(
+            {
+                "batch_id": "fixture_batch",
+                "status": "candidate_frontier_only",
+                "node_type_frontiers": [
+                    {
+                        "type_id": "tg.node.artist",
+                        "candidate_rows_materialized": 2,
+                        "accepted_rows_counted": 0,
+                    }
+                ],
+                "edge_type_frontiers": [
+                    {
+                        "edge_type_id": "tg.edge.related_to",
+                        "candidate_rows_materialized": 2,
+                        "accepted_rows_counted": 0,
+                    }
+                ],
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+
+def _write_fiber_records(
+    bundle: Path,
+    *,
+    count: int = 1,
+    status: str = "accepted",
+    with_row_authority: bool = True,
+    internal_sources: bool = False,
+) -> None:
+    _write_rich_type_records(bundle)
+    node_records = []
+    for index in range(1, count + 1):
+        row_authority = {
+            "source_batch_id": "fixture_batch",
+            "source_row_id": "source_row_001",
+            "markdown_decision_report_path": "runs/run_001/reports/domain_membership_boundary_report.md",
+            "markdown_decision_row_id": "decision_row_001",
+            "graph_write_authorization_status": "authorized",
+        }
+        node = {
+            "id": f"fg.node.fixture.{index:04d}",
+            "type_id": "tg.node.artist",
+            "label": f"Fixture Instance {index}",
+            "status": status,
+            "fields": {
+                "name": {
+                    "values": [
+                        {
+                            "value": f"Fixture Instance {index}",
+                            "status": status,
+                            "confidence": 1.0,
+                            "sources": [
+                                {
+                                    "url": "runs/run_001/batch_packets/fixture_batch.md#candidate-0001"
+                                    if internal_sources
+                                    else "https://example.test/alpha/row/1"
+                                }
+                            ],
+                        }
+                    ]
+                }
+            },
+            "sources": [
+                {
+                    "source_family": "source_family_alpha",
+                    "url": "runs/run_001/batch_packets/fixture_batch.md#candidate-0001"
+                    if internal_sources
+                    else "https://example.test/alpha/row/1",
+                }
+            ],
+            "domain_membership_basis": "fixture source row",
+            "type_membership_basis": "fixture type row",
+        }
+        if with_row_authority:
+            node["row_authority"] = row_authority
+        node_records.append(node)
+
+    edge_records = []
+    for index in range(1, count + 1):
+        row_authority = {
+            "source_batch_id": "fixture_batch",
+            "source_row_id": "pair_row_001",
+            "markdown_decision_report_path": "runs/run_001/reports/edge_candidate_review.md",
+            "markdown_decision_row_id": "edge_decision_row_001",
+            "graph_write_authorization_status": "authorized",
+            "pair_evidence_row_id": "pair_row_001",
+            "source_entity_row_id": "source_row_001",
+            "target_entity_row_id": "source_row_001",
+            "predicate_or_relation_evidence": "fixture primitive relation",
+        }
+        edge = {
+            "id": f"fg.edge.fixture.{index:04d}",
+            "type_id": "tg.edge.related_to",
+            "source_id": f"fg.node.fixture.{index:04d}",
+            "target_id": f"fg.node.fixture.{index:04d}",
+            "label": f"Fixture relation {index}",
+            "status": status,
+            "fields": {
+                "pair_evidence": {
+                    "values": [
+                        {
+                            "value": "fixture pair evidence",
+                            "status": status,
+                            "confidence": 1.0,
+                            "sources": [
+                                {
+                                    "url": "runs/run_001/batch_packets/fixture_batch.md#edge-0001"
+                                    if internal_sources
+                                    else "https://example.test/beta/pair/1"
+                                }
+                            ],
+                        }
+                    ]
+                }
+            },
+            "sources": [
+                {
+                    "source_family": "source_family_beta",
+                    "url": "runs/run_001/batch_packets/fixture_batch.md#edge-0001"
+                    if internal_sources
+                    else "https://example.test/beta/pair/1",
+                }
+            ],
+        }
+        if with_row_authority:
+            edge["row_authority"] = row_authority
+        edge_records.append(edge)
+
+    (bundle / "candidate_graphs" / "fg" / "nodes.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "ortelius.graph.v0",
+                "graph_id": "fg",
+                "record_kind": "nodes",
+                "records": node_records,
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    (bundle / "candidate_graphs" / "fg" / "edges.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "ortelius.graph.v0",
+                "graph_id": "fg",
+                "record_kind": "edges",
+                "records": edge_records,
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+
+def _make_ordinary_make_graph(bundle: Path) -> None:
+    manifest_path = bundle / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest.get("graph_build_target", {}).pop("reduced_mode", None)
+    manifest.get("run_contract_completeness", {}).pop("reduced_mode", None)
+    manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
+
+def _write_full_make_graph_loop_surface(bundle: Path) -> None:
+    loop_specs = bundle / "loop_specs"
+    loop_specs.mkdir(parents=True, exist_ok=True)
+    required_specs = [
+        ("01_graph_intent_alignment.md", "graph_intent_alignment"),
+        ("02_domain_suitability.md", "domain_suitability"),
+        ("03_graph_json_initialization.md", "graph_json_initialization"),
+        ("04_type_set_discovery.md", "type_set_discovery"),
+        ("05_type_set_review.md", "type_set_review"),
+        ("06_type_field_discovery_for_each_type.md", "type_field_discovery_for_each_type"),
+        ("07_type_field_review.md", "type_field_review"),
+        (
+            "08_type_edge_discovery_from_enriched_types.md",
+            "type_edge_discovery_from_enriched_types",
+        ),
+        ("09_type_edge_review.md", "type_edge_review"),
+        (
+            "10_type_edge_field_discovery_for_each_edge_type.md",
+            "type_edge_field_discovery_for_each_edge_type",
+        ),
+        ("11_type_graph_ready_gate.md", "type_graph_ready_gate"),
+        ("12_instance_target_selection.md", "instance_target_selection"),
+        ("13_instance_discovery.md", "instance_discovery"),
+        ("14_instance_field_completion.md", "instance_field_completion"),
+        ("15_edge_instance_discovery.md", "edge_instance_discovery"),
+        ("16_edge_instance_field_completion.md", "edge_instance_field_completion"),
+        ("17_fiber_graph_review.md", "fiber_graph_review"),
+        ("18_semantic_acceptance_gate.md", "semantic_acceptance_gate"),
+    ]
+    for index, (filename, loop_id) in enumerate(required_specs, start=1):
+        (loop_specs / filename).write_text(
+            f"""# {loop_id.replace("_", " ").title()}
+
+## Loop Identity
+
+loop_id: {loop_id}
+graph_level: bundle
+manifest_order_index: {index}
+
+## Inputs
+
+input_files: manifest.json, graph_population_protocol.md, runs/run_001/cursor.json
+required_manifest_fields: domain, graphs, graph_intent, graph_build_target
+
+## Iterator
+
+iterator_name: {loop_id}_items
+iterator_source: Markdown authority tables and source-batch rows
+target_count: bounded by manifest graph_build_target
+
+## Current Item Shape
+
+current_item_fields: id, label, type_id, source_family, source_adapter_id, status
+cursor_fields: active_loop_id, active_action_id, active_iteration
+
+## Action Template
+
+action_id_template: {loop_id}.<item_id>
+action_prompt_template: Execute the next bounded Markdown-authorized action.
+
+## Allowed Writes
+
+output_files: runs/run_001/reports/*.md, runs/run_001/cursor.json, runs/run_001/execution_log.md, candidate_graphs/**/*.json
+write_rule: write only rows authorized by source-batch and Markdown decision rows
+max_records_written_per_action: bounded batch
+
+## Source Boundaries
+
+allowed_source_types: fixture source rows
+allowed_source_locations: https://example.test, repo-local bundle artifacts
+disallowed_sources: unlogged live probes, generated semantic source substitutes
+evidence_threshold: source rows must remain auditable
+
+## Evidence Required
+
+record_evidence_required: graph intent fit, source_batch_id, source_row_id, markdown_decision_row_id
+field_evidence_required: identity and domain fields from source rows
+unsupported_claim_rule: candidate rows do not count toward semantic targets
+
+## Validation Required
+
+validation_checklist: graph JSON projection validates and row authority reconciles
+validation_unavailable_rule: stop
+
+## Completion Rule
+
+action_completion_rule: current bounded item processed and log entry appended
+loop_completion_rule: iterator exhausted, target met, or stop condition fires
+
+## Semantic Acceptance Gate
+
+accepted_counting_rule: only accepted source-backed records count toward semantic targets
+candidate_counting_rule: candidate rows never count toward MAKE-GRAPH targets
+target_progress_rule: raw graph counts are diagnostics, not completion
+
+## Recovery Policy
+
+recoverable_failure_classes: source_limited, field_richness_limited, edge_evidence_limited
+recovery_ladder: retry declared batch, switch declared adapter, add child batch packet, or stop with limitation
+recovery_attempt_budget: 1
+resume_condition: next legal action remains declared in cursor
+exhaustion_condition: no declared recovery remains
+
+## Batch Execution
+
+batch_execution_meaning: execute only Markdown-declared source and graph-write batches
+batch_plan_path: runs/run_001/source_batch_plan.md
+batch_packet_path: runs/run_001/batch_packets/fixture_batch.md
+batch_size: fixture_small
+checkpoint_rule: update execution_log.md and cursor.json after each bounded batch
+
+## Stop Conditions
+
+stop_conditions: graph_intent_unconfirmed, source_batch_rows_missing, target_scale_candidate_inflation
+failure_report_fields: failure_kind, next_required_input, source_family, recovery_budget_remaining
+
+## Handoff
+
+handoff_to_next_loop: next manifest ordered loop
+cursor_update_rule: set active_loop_id and next_legal_action from validation result
+""",
+            encoding="utf-8",
+        )
+
+    manifest_path = bundle / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["ordered_loop_specs"] = [
+        f"loop_specs/{filename}" for filename, _loop_id in required_specs
+    ]
+    manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
 
 def test_validate_system_protocol_assets_accepts_current_system_assets() -> None:
@@ -1063,3 +1536,131 @@ def test_validate_protocol_bundle_rejects_incomplete_status_with_success_narrati
 
     assert not report.ok
     assert report.has_code("completion_narration_inconsistent")
+
+
+def test_validate_protocol_bundle_rejects_target_scale_candidate_inflation(
+    tmp_path: Path,
+) -> None:
+    bundle = tmp_path / "bundle"
+    shutil.copytree(VALID_BUNDLE, bundle)
+    _promote_fixture_to_make_graph(
+        bundle, node_instances=2, edge_instances=2, reduced_mode=None
+    )
+    _write_make_graph_artifacts(bundle)
+    _write_counter_only_source_batch(bundle)
+    _write_fiber_records(bundle, count=2, status="candidate", with_row_authority=False)
+
+    report = validate_protocol_bundle(bundle)
+
+    assert not report.ok
+    assert report.has_code("target_scale_candidate_inflation")
+
+
+def test_validate_protocol_bundle_rejects_counter_only_source_batch(
+    tmp_path: Path,
+) -> None:
+    bundle = tmp_path / "bundle"
+    shutil.copytree(VALID_BUNDLE, bundle)
+    _promote_fixture_to_make_graph(bundle, reduced_mode=None)
+    _write_make_graph_artifacts(bundle)
+    _write_counter_only_source_batch(bundle)
+
+    report = validate_protocol_bundle(bundle)
+
+    assert not report.ok
+    assert report.has_code("source_batch_rows_missing")
+
+
+def test_validate_protocol_bundle_rejects_fiber_record_without_row_authority(
+    tmp_path: Path,
+) -> None:
+    bundle = tmp_path / "bundle"
+    shutil.copytree(VALID_BUNDLE, bundle)
+    _promote_fixture_to_make_graph(bundle, reduced_mode=None)
+    _write_make_graph_artifacts(bundle)
+    _write_source_batch_rows(bundle)
+    _write_fiber_records(bundle, with_row_authority=False)
+
+    report = validate_protocol_bundle(bundle)
+
+    assert not report.ok
+    assert report.has_code("graph_record_row_authority_missing")
+
+
+def test_validate_protocol_bundle_accepts_row_backed_incremental_fiber_write(
+    tmp_path: Path,
+) -> None:
+    bundle = tmp_path / "bundle"
+    shutil.copytree(VALID_BUNDLE, bundle)
+    _promote_fixture_to_make_graph(bundle, reduced_mode=None)
+    _write_make_graph_artifacts(bundle)
+    _write_full_make_graph_loop_surface(bundle)
+    _write_source_batch_rows(bundle)
+    _write_fiber_records(bundle, with_row_authority=True)
+
+    report = validate_protocol_bundle(bundle)
+
+    assert report.ok
+
+
+def test_validate_protocol_bundle_rejects_internal_artifact_as_external_evidence(
+    tmp_path: Path,
+) -> None:
+    bundle = tmp_path / "bundle"
+    shutil.copytree(VALID_BUNDLE, bundle)
+    _promote_fixture_to_make_graph(bundle, reduced_mode=None)
+    _write_make_graph_artifacts(bundle)
+    _write_source_batch_rows(bundle)
+    _write_fiber_records(bundle, with_row_authority=True, internal_sources=True)
+
+    report = validate_protocol_bundle(bundle)
+
+    assert not report.ok
+    assert report.has_code("internal_artifact_used_as_external_evidence")
+
+
+def test_validate_protocol_bundle_rejects_generated_code_graph_json_write(
+    tmp_path: Path,
+) -> None:
+    bundle = tmp_path / "bundle"
+    shutil.copytree(VALID_BUNDLE, bundle)
+    _promote_fixture_to_make_graph(bundle, reduced_mode=None)
+    _write_make_graph_artifacts(bundle)
+    audit = bundle / "runs" / "run_001" / "reports" / "generated_code_runtime_audit.md"
+    audit.write_text(
+        "# Generated Code Runtime Audit\n\n"
+        "generated_code_used: true\n"
+        "declared_markdown_authority: runs/run_001/batch_packets/fixture_batch.md\n"
+        "mechanical_purpose: serialize graph JSON\n"
+        "semantic_non_authority_statement: helper cannot decide graph content\n"
+        "inputs: fixture batch\n"
+        "outputs: candidate_graphs and reports\n"
+        "executed_at: fixture time\n"
+        "cleanup_status: removed after materialization\n"
+        "safe_to_resume: true\n\n"
+        "| code_artifact_path | used | purpose | mechanical_only | semantic_decisions_present | markdown_inputs_read | graph_outputs_written | reports_written | authority_decision | notes |\n"
+        "|---|---|---|---|---|---|---|---|---|---|\n"
+        "| .tmp_generate_bundle.py | true | bundle serialization | true | false | fixture_batch.md | candidate_graphs | semantic_acceptance_report.md | mechanical_only | removed |\n",
+        encoding="utf-8",
+    )
+
+    report = validate_protocol_bundle(bundle)
+
+    assert not report.ok
+    assert report.has_code("generated_code_graph_write_forbidden")
+    assert report.has_code("generated_code_semantic_report_write_forbidden")
+    assert report.has_code("deleted_generated_code_authority_uninspectable")
+
+
+def test_validate_protocol_bundle_rejects_incomplete_ordinary_make_graph_loop_surface(
+    tmp_path: Path,
+) -> None:
+    bundle = tmp_path / "bundle"
+    shutil.copytree(VALID_BUNDLE, bundle)
+    _promote_fixture_to_make_graph(bundle, reduced_mode=None)
+    _write_make_graph_artifacts(bundle)
+
+    report = validate_protocol_bundle(bundle)
+
+    assert not report.ok
+    assert report.has_code("make_graph_loop_surface_incomplete")
